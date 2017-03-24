@@ -1,0 +1,16 @@
+FROM lacion/docker-alpine:gobuildimage
+
+LABEL app="build-featex"
+LABEL REPO="https://github.com/jpfairbanks/featex"
+
+ENV GOROOT=/usr/lib/go \
+    GOPATH=/gopath \
+    GOBIN=/gopath/bin \
+    PROJPATH=/gopath/src/github.com/jpfairbanks/featex
+
+# Because of https://github.com/docker/docker/issues/14914
+ENV PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+
+WORKDIR /gopath/src/github.com/jpfairbanks/featex
+
+CMD ["make","build-alpine"]
