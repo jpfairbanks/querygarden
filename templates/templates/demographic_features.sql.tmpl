@@ -1,0 +1,219 @@
+{{/* This template was ported from github.com/OHDSI/FeatureExtraction.git
+        Commit: 228212d -- fix manual
+*/ }}
+
+{@use_covariate_demographics} ? {
+
+
+
+{@use_covariate_demographics_gender} ? {
+--gender
+SELECT cp1.@row_id_field AS row_id,
+	gender_concept_id AS covariate_id,
+	1 AS covariate_value
+INTO #cov_gender
+FROM @cohort_temp_table cp1
+INNER JOIN @cdm_database_schema.person p1
+	ON cp1.subject_id = p1.person_id
+WHERE p1.gender_concept_id IN (
+		SELECT concept_id
+		FROM @cdm_database_schema.concept
+		WHERE LOWER(@concept_class_id) = 'gender'
+		);
+
+
+INSERT INTO #cov_ref (
+  covariate_id,
+	covariate_name,
+	analysis_id,
+	concept_id
+	)
+SELECT p1.covariate_id,
+	'Gender = ' +
+    CASE WHEN v1.concept_name IS NOT NULL
+			THEN v1.concept_name
+		ELSE 'Unknown invalid concept'
+		END AS covariate_name,
+	2 AS analysis_id,
+	p1.covariate_id AS concept_id
+FROM (SELECT distinct covariate_id FROM #cov_gender) p1
+LEFT JOIN (
+	SELECT concept_id,
+		concept_name
+	FROM @cdm_database_schema.concept
+	WHERE LOWER(@concept_class_id) = 'gender'
+	) v1
+	ON p1.covariate_id = v1.concept_id;
+
+}
+
+
+{@use_covariate_demographics_race} ? {
+--race
+SELECT cp1.@row_id_field AS row_id,
+	race_concept_id AS covariate_id,
+	1 AS covariate_value
+  INTO #cov_race
+FROM @cohort_temp_table cp1
+INNER JOIN @cdm_database_schema.person p1
+	ON cp1.subject_id = p1.person_id
+WHERE p1.race_concept_id IN (
+		SELECT concept_id
+		FROM @cdm_database_schema.concept
+		WHERE LOWER(@concept_class_id) = 'race'
+		);
+
+
+INSERT INTO #cov_ref (
+  covariate_id,
+  covariate_name,
+	analysis_id,
+	concept_id
+	)
+SELECT p1.covariate_id,
+	'Race = ' + CASE WHEN v1.concept_name IS NOT NULL
+  		THEN v1.concept_name
+		ELSE 'Unknown invalid concept'
+		END  AS covariate_name,
+	3 AS analysis_id,
+	p1.covariate_id AS concept_id
+FROM (SELECT distinct covariate_id FROM #cov_race) p1
+LEFT JOIN (
+	SELECT concept_id,
+		concept_name
+	FROM @cdm_database_schema.concept
+	WHERE LOWER(@concept_class_id) = 'race'
+	) v1
+	ON p1.covariate_id = v1.concept_id;
+
+
+}
+
+{@use_covariate_demographics_ethnicity} ? {
+--ethnicity
+SELECT cp1.@row_id_field AS row_id,
+	ethnicity_concept_id AS covariate_id,
+	1 AS covariate_value
+  INTO #cov_ethnicity
+FROM @cohort_temp_table cp1
+INNER JOIN @cdm_database_schema.person p1
+	ON cp1.subject_id = p1.person_id
+WHERE p1.ethnicity_concept_id IN (
+		SELECT concept_id
+		FROM @cdm_database_schema.concept
+		WHERE LOWER(@concept_class_id) = 'ethnicity'
+		);
+
+
+
+INSERT INTO #cov_ref (
+  covariate_id,
+  covariate_name,
+  analysis_id,
+	concept_id
+	)
+SELECT p1.covariate_id,
+	'Ethnicity = ' + CASE WHEN v1.concept_name IS NOT NULL
+  		THEN v1.concept_name
+		ELSE 'Unknown invalid concept'
+		END  AS covariate_name,
+	4 AS analysis_id,
+	p1.covariate_id AS concept_id
+FROM (SELECT distinct covariate_id FROM #cov_ethnicity) p1
+LEFT JOIN (
+	SELECT concept_id,
+		concept_name
+	FROM @cdm_database_schema.concept
+	WHERE LOWER(@concept_class_id) = 'ethnicity'
+	) v1
+	ON p1.covariate_id = v1.concept_id;
+
+
+}
+
+
+{@use_covariate_demographics_age} ? {
+--age group
+SELECT cp1.@row_id_field AS row_id,
+	FLOOR((YEAR(cp1.cohort_start_date) - p1.YEAR_OF_BIRTH) / 5) + 10 AS covariate_id,
+	1 AS covariate_value
+    INTO #cov_age
+FROM @cohort_temp_table cp1
+INNER JOIN @cdm_database_schema.person p1
+	ON cp1.subject_id = p1.person_id
+WHERE (YEAR(cp1.cohort_start_date) - p1.YEAR_OF_BIRTH) >= 0
+	AND (YEAR(cp1.cohort_start_date) - p1.YEAR_OF_BIRTH) < 100;
+
+
+
+
+INSERT INTO #cov_ref (
+  covariate_id,
+	covariate_name,
+	analysis_id,
+	concept_id
+	)
+SELECT p1.covariate_id,
+	'Age group: ' + CAST((covariate_id-10)*5 AS VARCHAR) + '-' + CAST((covariate_id-10+1)*5-1 AS VARCHAR)  AS covariate_name,
+	4 AS analysis_id,
+	0 AS concept_id
+FROM (select distinct covariate_id FROM #cov_age) p1
+;
+
+
+
+}
+
+
+{@use_covariate_demographics_year} ? {
+--index year
+SELECT cp1.@row_id_field AS row_id,
+	YEAR(cohort_start_date) AS covariate_id,
+	1 AS covariate_value
+    INTO #cov_year
+FROM @cohort_temp_table cp1;
+
+
+INSERT INTO #cov_ref (
+  covariate_id,
+  covariate_name,
+	analysis_id,
+	concept_id
+	)
+SELECT p1.covariate_id,
+	'Index year: ' + CAST(covariate_id AS VARCHAR)  AS covariate_name,
+	5 AS analysis_id,
+	0 AS concept_id
+FROM (select distinct covariate_id FROM #cov_year) p1
+;
+
+}
+
+
+{@use_covariate_demographics_month} ? {
+
+--index month
+
+SELECT cp1.@row_id_field AS row_id,
+	MONTH(cohort_start_date) + 40 AS covariate_id,
+	1 AS covariate_value
+    INTO #cov_month
+FROM @cohort_temp_table cp1;
+
+
+INSERT INTO #cov_ref (
+  covariate_id,
+  covariate_name,
+  analysis_id,
+	concept_id
+	)
+SELECT p1.covariate_id,
+	'Index month: ' + CAST(covariate_id-40 AS VARCHAR)  AS covariate_name,
+	6 AS analysis_id,
+	0 AS concept_id
+FROM (select distinct covariate_id FROM #cov_month) p1
+;
+
+}
+
+}

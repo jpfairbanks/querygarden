@@ -1,0 +1,11 @@
+features:
+  demographics: {
+    Filename: demographics.sql,
+    bindvars: ["limit"] }
+  features: {
+    Filename: features.sql,
+    bindvars: ["person"]
+  }
+  demographics_historical:
+    Filename: "demographics.historical.sql"
+    bindvars: []
