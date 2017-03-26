@@ -1,0 +1,22 @@
+global:
+  schema: "lite_synpuf2"
+  version: "5"
+scopes:
+  - demographics
+  - demographics_historical
+  - features
+demographics:
+  Template: "demographics.sql.tmpl"
+  Filename: "demographics.sql"
+  Limit: "LIMIT ?"
+  Cond: "year <= 2016 and year >= 2000"
+  Table: "table"
+demographics_historical:
+  Template: "demographics.sql.tmpl"
+  Filename: "demographics.historical.sql"
+  Limit: ""
+  Cond: "year <= 2000 and year >= 1900"
+  Table: "table"
+features:
+  Template: features.sql.tmpl
+  Filename: features.sql

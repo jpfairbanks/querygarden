@@ -4,11 +4,8 @@ import (
 	"github.com/jpfairbanks/featex/log"
 	"os"
 	"path"
-	//"fmt"
 	"io/ioutil"
 	"database/sql"
-	//_ "github.com/lib/pq"
-	//"errors"
 	"fmt"
 	"github.com/spf13/viper"
 )
@@ -125,3 +122,4 @@ func (ctx *Context) ArrangeBindVars(key string, values map[string]string) []inte
 	args = q.ArrangeBindVars(values)
 	return args
 }
+
