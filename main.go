@@ -11,11 +11,13 @@ import (
 	_ "github.com/lib/pq"
 	"net/http"
 	"io"
-
-	//"html/template"
+	"html/template"
+	"bytes"
+	"bufio"
+	"errors"
 )
 
-var RESPONSE_LIMIT = 250
+var RESPONSE_LIMIT = 500
 //go:generate sqlgen
 
 // RowMap takes a DB result Rows and maps a function over each row.
@@ -49,14 +51,47 @@ func RowMap(f func(rows *sql.Rows) (bool, error), rows *sql.Rows) error {
 func WriteString(w io.Writer, s string) (int, error) {
 	return w.Write([]byte(s))
 }
-var headelt = `<head>
+
+// Writes a series of rows as a table of featex.Features.
+// The io.Writer should be a buffer of some kind that will get passed to
+// an html template as a template.HTML(tablew.Bytes()) object.
+// Otherwise, the table tags will be escaped and break your page.
+// Make sure to flush the buffer before constructing the template.HTML object.
+// returns the number of rows successfully writen
+func WriteTable(tablew io.Writer, rows *sql.Rows) (int, error) {
+	var i = 0
+	var row featex.Feature
+	err := RowMap(func(r *sql.Rows) (bool, error) {
+		i += 1
+		if i > RESPONSE_LIMIT {
+			// false means to terminate
+			return false, nil
+		} else {
+			// get the value out of the db cursor
+			if err := rows.Scan(&row.Personid, &row.Start_date, &row.End_date, &row.Concept_id, &row.Concept_type); err != nil {
+				log.Error(err)
+				return false, err
+			}
+			// write one row to the output stream
+			fmt.Fprintf(tablew, "<tr><td>%d</td> <td>%s</td> <td> %s</td> <td> %d</td> <td> %s</td></tr>\n",
+				row.Personid.Int64, row.Start_date.String,
+				row.End_date.String, row.Concept_id.Int64, row.Concept_type)
+			// true means continue
+			return true,  nil
+		}}, rows)
+	if err != nil{
+		return i, err
+	}
+	return i, nil
+}
+var headelt = template.HTML(`<head>
 <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/flatly/bootstrap.min.css" rel="stylesheet" integrity="sha384-+ENW/yibaokMnme+vBLnHMphUYxHs34h9lpdbSLuAwGkOKFRl4C34WkjazBtb7eT" crossorigin="anonymous">
 <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/styles/default.min.css">
 <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/highlight.min.js"></script>
 <script>hljs.initHighlightingOnLoad();</script>
-</head>`
+</head>`)
 
-var tableheader = `<h2>Result</h2><p><table class="table table-stripped"><tr>Person, Start Date, End Date, ConceptID, Feature Type</tr>`
+var tableheader = template.HTML(`<table class="table table-stripped"><tr>Person, Start Date, End Date, ConceptID, Feature Type</tr>`)
 func main() {
 	// Set up command line flag.
 	err := featex.Config()
@@ -88,8 +123,18 @@ func main() {
 	}
 	log.Info("Database connected")
 
+	// load the templates into a template cache panic on error.
+	var templates = template.Must(template.ParseFiles("templates/html/queries.html.tmpl", "templates/html/query.html.tmpl"))
+	log.WithFields(log.Fields{"Templates":templates}).Info("Read Templates")
+
 	// set up the query handler with the current Context and DB connection
 	queryhandler := func(w http.ResponseWriter, r *http.Request) {
+		// initialize a buffer for the table in HTML
+		buf := make([]byte, 0)
+		table := bytes.NewBuffer(buf)
+		tablew := bufio.NewWriter(table)
+
+		// parse the request from the client
 		req, err := featex.ParseRequest(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -98,40 +143,27 @@ func main() {
 		for k, v := range req.Args {
 			args[k] = v[0]
 		}
-		byts, err := json.Marshal(req)
-		WriteString(w, headelt)
-		WriteString(w,`<div class="container"><h1>Ran Query</h1>`)
-		WriteString(w, "<p><pre><code class=json>")
-		w.Write(byts)
-		WriteString(w, "</code></pre></p>")
 
-		WriteString(w, "<h2>Query.Text</h2><pre><code class=sql>")
-		WriteString(w, ctx.Queries[req.Key].Text)
-		WriteString(w, "</code></pre>")
-		WriteString(w, tableheader)
-
+		// get the result from the DB
 		rows, err := ctx.Query(*Conn, req.Key, ctx.ArrangeBindVars(req.Key, args)...)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		var i = 0
-		RowMap(func(r *sql.Rows) (bool, error) {
-			i += 1
-			if i > RESPONSE_LIMIT {
-				return false, nil
-			} else {
-				WriteString(w, "<tr><td>")
-				b, err := featex.CSVRow(rows, w)
-				WriteString(w, "</td></tr>")
-				return b,err
-			}
-
-			return true, nil
-
-		},
-			rows)
-		WriteString(w, "</table></p></div>")
+		// write the result as a table to the a bytes buffer so it can go in the template.
+		WriteTable(tablew, rows)
+		tablew.Flush()
+		byts, err := json.Marshal(req)
+		var respdata = map[string]interface{}{"Args":string(byts),
+			"QueryText": ctx.Queries[req.Key].Text,
+			"Tableheader": tableheader,
+			"Table":template.HTML(table.Bytes())}
+		// render the page to the client
+		err = templates.ExecuteTemplate(w, "query.html.tmpl", respdata)
+		if err != nil{
+			err = errors.New(fmt.Sprintf("Could not render template: %s", err))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 
 	//Attach the query handler to the route and start the server on localhost.
