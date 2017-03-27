@@ -112,7 +112,7 @@ func main() {
 	// prepare the query map which holds the queries as strings
 	ctx := featex.Context{"./sql", make(map[string]featex.Query)}
 	log.Info("Loading queries")
-	keys := []string{"demographics", "demographics_historical", "features"}
+	keys := []string{"demographics", "demographics_historical", "features", "condition", "drugs", "drug_era", "milenial_features"}
 	ctx.LoadQueries(keys)
 
 	//prepare the database
@@ -154,20 +154,27 @@ func main() {
 		WriteTable(tablew, rows)
 		tablew.Flush()
 		byts, err := json.Marshal(req)
-		var respdata = map[string]interface{}{"Args":string(byts),
-			"QueryText": ctx.Queries[req.Key].Text,
-			"Tableheader": tableheader,
-			"Table":template.HTML(table.Bytes())}
+		var respdata = map[string]interface{}{"Args": string(byts),
+			"QueryText":                          ctx.Queries[req.Key].Text,
+			"Tableheader":                        tableheader,
+			"Table":                              template.HTML(table.Bytes())}
 		// render the page to the client
 		err = templates.ExecuteTemplate(w, "query.html.tmpl", respdata)
-		if err != nil{
+		if err != nil {
 			err = errors.New(fmt.Sprintf("Could not render template: %s", err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
-
 	//Attach the query handler to the route and start the server on localhost.
 	http.HandleFunc("/query/", queryhandler)
+	listhandler := func(w http.ResponseWriter, r *http.Request) {
+		resp, err := json.Marshal(ctx.Queries)
+		if err != nil{
+			http.Error(w, "Could not marshall ctx.Queries into JSON", http.StatusInternalServerError)
+		}
+		w.Write(resp)
+	}
+	http.HandleFunc("/queries", listhandler)
 	addr := ":8080"
 	log.Infof("Serving on address: %s", addr)
 	http.ListenAndServe(addr, nil)

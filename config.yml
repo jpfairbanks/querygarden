@@ -5,6 +5,10 @@ scopes:
   - demographics
   - demographics_historical
   - features
+  - condition
+  - drugs
+  - drug_era
+  - milenial_features
 demographics:
   Template: "demographics.sql.tmpl"
   Filename: "demographics.sql"
@@ -20,3 +24,17 @@ demographics_historical:
 features:
   Template: features.sql.tmpl
   Filename: features.sql
+condition:
+  Template: condition.sql.tmpl
+  Filename: condition.sql
+drugs:
+  Template: drugs.sql.tmpl
+  Filename: drugs.sql
+drug_era:
+  Template: drug_era.sql.tmpl
+  Filename: drug_era.sql
+milenial_features:
+  Template: constrained_features.sql.tmpl
+  Filename: milenial_features.sql
+  Constraint: WHERE PT.year_of_birth > 1980
+  Persontable: person

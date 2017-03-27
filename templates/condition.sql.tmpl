@@ -1,0 +1,9 @@
+SELECT
+  person_id,
+  condition_start_date AS start_date,
+  condition_end_date   AS end_date,
+  condition_concept_id    concept_id,
+  'condition'          AS type
+FROM {{ .schema }}.condition_occurrence
+WHERE person_id = $1
+ORDER BY person_id, type, start_date, end_date

@@ -9,3 +9,15 @@ features:
   demographics_historical:
     Filename: "demographics.historical.sql"
     bindvars: []
+  condition:
+    Filename: "condition.sql"
+    bindvars: ["person"]
+  drugs:
+    Filename: "drugs.sql"
+    bindvars: ["person"]
+  drug_era:
+    Filename: "drug_era.sql"
+    bindvars: ["person"]
+  milenial_features:
+    Filename: "milenial_features.sql"
+    bindvars: []
