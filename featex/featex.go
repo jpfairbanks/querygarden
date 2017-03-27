@@ -16,9 +16,8 @@ type QError struct {
 	msg string
 }
 
-
 func (err QError) Error() string  {
-	return fmt.Sprintf("%s: %msg", err.key, err.msg)
+	return fmt.Sprintf("key=%s: %msg", err.key, err.msg)
 }
 
 // A Query is a structure that holds the
@@ -35,7 +34,11 @@ type Query struct {
 func (q Query) ArrangeBindVars(values map[string]string) []interface{}{
 	args := make([]interface{}, len(q.Bindvars))
 	for i, bv := range q.Bindvars{
-		args[i] = values[bv]
+		val, ok := values[bv]
+		if !ok {
+			log.Warnf("Missing Var: pos=%d varname=%s ", i, bv)
+		}
+		args[i] = val
 	}
 	return args
 }
@@ -98,7 +101,7 @@ func (ctx *Context) Query(db sql.DB, key string, args...interface{})  (*sql.Rows
 	var res *sql.Rows
 	qry, ok := ctx.Queries[key]
 	if !ok {
-		err := QError{key, "no query with key=%s found in Context"}
+		err := QError{key, "no query with key found in Context"}
 		return res, err
 	}
 	if qry.Text == "" {

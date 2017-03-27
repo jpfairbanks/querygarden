@@ -5,6 +5,7 @@ import (
 	"time"
 	"fmt"
 	"github.com/jpfairbanks/featex/log"
+	"io"
 )
 
 // A Feature is a struct that represents the result of running a feature extraction query.
@@ -22,20 +23,20 @@ func FmtDate(t time.Time) string {
 }
 
 //Println sproa feature as a row of a CSV table.
-func (f Feature) Println() {
-	fmt.Printf("%d, %s, %s, %d, %s\n", f.personid.Int64, f.start_date.String,
+func (f Feature) Fprintln(w io.Writer) {
+	fmt.Fprintf(w, "%d, %s, %s, %d, %s\n", f.personid.Int64, f.start_date.String,
 		f.end_date.String, f.concept_id.Int64, f.concept_type)
 }
 
 // CSVRow takes a row of the feature matrix and prints it out as a CSV line to os.Stdout.
 // rows is a the result of running a sql.Query
-func CSVRow(rows *sql.Rows) error {
+func CSVRow(rows *sql.Rows, w io.Writer) (bool, error) {
 	var row Feature
 	if err := rows.Scan(&row.personid, &row.start_date, &row.end_date, &row.concept_id, &row.concept_type); err != nil {
 		log.Error(err)
-		return err
+		return false, err
 	}
 	//spew.Dump("%s", row)
-	row.Println()
-	return nil
+	row.Fprintln(w)
+	return true, nil
 }
