@@ -10,7 +10,9 @@ import (
 	"github.com/jpfairbanks/featex/log"
 	_ "github.com/lib/pq"
 	"net/http"
-	//"io"
+	"io"
+
+	//"html/template"
 )
 
 var RESPONSE_LIMIT = 250
@@ -44,6 +46,17 @@ func RowMap(f func(rows *sql.Rows) (bool, error), rows *sql.Rows) error {
 
 }
 
+func WriteString(w io.Writer, s string) (int, error) {
+	return w.Write([]byte(s))
+}
+var headelt = `<head>
+<link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/flatly/bootstrap.min.css" rel="stylesheet" integrity="sha384-+ENW/yibaokMnme+vBLnHMphUYxHs34h9lpdbSLuAwGkOKFRl4C34WkjazBtb7eT" crossorigin="anonymous">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/styles/default.min.css">
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+</head>`
+
+var tableheader = `<h2>Result</h2><p><table class="table table-stripped"><tr>Person, Start Date, End Date, ConceptID, Feature Type</tr>`
 func main() {
 	// Set up command line flag.
 	err := featex.Config()
@@ -86,13 +99,16 @@ func main() {
 			args[k] = v[0]
 		}
 		byts, err := json.Marshal(req)
-		w.Write([]byte("<h1>Ran Query</h1><p>"))
+		WriteString(w, headelt)
+		WriteString(w,`<div class="container"><h1>Ran Query</h1>`)
+		WriteString(w, "<p><pre><code class=json>")
 		w.Write(byts)
-		w.Write([]byte("</p>"))
-		w.Write([]byte("<h2>Query.Text</h2><p>"))
-		w.Write([]byte(ctx.Queries[req.Key].Text))
-		w.Write([]byte("</p>"))
-		w.Write([]byte("<h2>Result</h2><p><table>"))
+		WriteString(w, "</code></pre></p>")
+
+		WriteString(w, "<h2>Query.Text</h2><pre><code class=sql>")
+		WriteString(w, ctx.Queries[req.Key].Text)
+		WriteString(w, "</code></pre>")
+		WriteString(w, tableheader)
 
 		rows, err := ctx.Query(*Conn, req.Key, ctx.ArrangeBindVars(req.Key, args)...)
 		if err != nil {
@@ -105,9 +121,9 @@ func main() {
 			if i > RESPONSE_LIMIT {
 				return false, nil
 			} else {
-				w.Write([]byte("<tr><td>"))
+				WriteString(w, "<tr><td>")
 				b, err := featex.CSVRow(rows, w)
-				w.Write([]byte("</td></tr>"))
+				WriteString(w, "</td></tr>")
 				return b,err
 			}
 
@@ -115,7 +131,7 @@ func main() {
 
 		},
 			rows)
-		w.Write([]byte("</table></p>"))
+		WriteString(w, "</table></p></div>")
 	}
 
 	//Attach the query handler to the route and start the server on localhost.
