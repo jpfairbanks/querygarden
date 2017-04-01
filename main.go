@@ -5,19 +5,21 @@ import (
 	"flag"
 	"fmt"
 	//"github.com/davecgh/go-spew/spew"
+	"bufio"
+	"bytes"
 	"encoding/json"
+	"html/template"
+	"io"
+	"net/http"
+
 	"github.com/jpfairbanks/featex/featex"
 	"github.com/jpfairbanks/featex/log"
 	_ "github.com/lib/pq"
-	"net/http"
-	"io"
-	"html/template"
-	"bytes"
-	"bufio"
-	"errors"
 )
 
-var RESPONSE_LIMIT = 500
+// ResponseLimit is the maximum number of values to pass as an HTML table
+var ResponseLimit = 500
+
 //go:generate sqlgen
 
 // RowMap takes a DB result Rows and maps a function over each row.

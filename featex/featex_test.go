@@ -1,14 +1,14 @@
 package featex
 
 import (
-	"testing"
-	"database/sql"
-	"github.com/jpfairbanks/featex/log"
-	"github.com/spf13/viper"
 	"bytes"
-	_ "github.com/lib/pq"
+	"database/sql"
 	"fmt"
-	"os"
+	"testing"
+
+	"github.com/jpfairbanks/featex/log"
+	_ "github.com/lib/pq"
+	"github.com/spf13/viper"
 )
 
 var yamlExample = []byte(`

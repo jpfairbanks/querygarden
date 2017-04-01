@@ -2,19 +2,20 @@ package featex
 
 import (
 	"database/sql"
-	"time"
 	"fmt"
-	"github.com/jpfairbanks/featex/log"
 	"io"
+	"time"
+
+	"github.com/jpfairbanks/featex/log"
 )
 
 // A Feature is a struct that represents the result of running a feature extraction query.
 type Feature struct {
-	Personid     sql.NullInt64  //the unique identifier of the row
-	Start_date   sql.NullString //time.Time
-	End_date     sql.NullString //time.Time
-	Concept_id   sql.NullInt64  // the omop concept code that reprsents the feature
-	Concept_type string         // a name for the
+	PersonID    sql.NullInt64  // the unique identifier of the row
+	StartDate   sql.NullString // time.Time
+	EndDate     sql.NullString // time.Time
+	ConceptID   sql.NullInt64  // the omop concept code that reprsents the feature
+	ConceptType string         // a name for the
 }
 
 // FmtDate takes a time a sprintf's it as a yyy-mm-dd date.

@@ -1,13 +1,14 @@
 package featex
 
 import (
-	"github.com/spf13/viper"
-	"github.com/jpfairbanks/featex/log"
 	"errors"
 	"os"
+
+	"github.com/jpfairbanks/featex/log"
+	"github.com/spf13/viper"
 )
 
-
+// Config sets up the viper configuration and reads it into the viper singleton.
 func Config() error {
 	viper.SetConfigName("featex_config")
 	viper.AddConfigPath("/etc/featex/")  // path to look for the config file in
@@ -26,7 +27,8 @@ func Config() error {
 	return nil
 }
 
-func DBString() string{
+// DBString gets the database configuration from the environment.
+func DBString() string {
 	dbstring, ok := os.LookupEnv("DBSTRING")
 	if !ok {
 		dbstring = "postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full"

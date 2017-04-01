@@ -1,12 +1,13 @@
 package featex
 
 import (
-	"github.com/jpfairbanks/featex/log"
-	"os"
-	"path"
-	"io/ioutil"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+
+	"github.com/jpfairbanks/featex/log"
 	"github.com/spf13/viper"
 )
 
@@ -63,8 +64,7 @@ func (ctx *Context) LoadQueries(keys []string) error {
 	return nil
 }
 
-
-// LoadQuery
+// LoadQuery reads all the queries into the map
 // given the name of the query, search the config structure to find the filename and the bindvars array.
 // Loads the text of the string into the Query structs.
 // Populates the map Context.Queries
