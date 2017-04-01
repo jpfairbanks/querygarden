@@ -174,13 +174,23 @@ func main() {
 	//Attach the query handler to the route and start the server on localhost.
 	http.HandleFunc("/query/", queryhandler)
 	listhandler := func(w http.ResponseWriter, r *http.Request) {
-		resp, err := json.Marshal(ctx.Queries)
-		if err != nil{
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(ctx.Queries)
+		//resp, err := json.Marshal(ctx.Queries)
+		if err != nil {
 			http.Error(w, "Could not marshall ctx.Queries into JSON", http.StatusInternalServerError)
 		}
-		w.Write(resp)
+
 	}
 	http.HandleFunc("/queries", listhandler)
+	http.HandleFunc("/index.html", func(w http.ResponseWriter, r *http.Request) {
+		data := map[string]interface{}{"": ""}
+		err := templates.ExecuteTemplate(w, "index.html.tmpl", data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+
 	addr := ":8080"
 	log.Infof("Serving on address: %s", addr)
 	http.ListenAndServe(addr, nil)
