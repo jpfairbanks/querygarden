@@ -151,7 +151,7 @@ func main() {
 		}
 
 		// get the result from the DB
-		rows, err := ctx.Query(*Conn, req.Key, ctx.ArrangeBindVars(req.Key, args)...)
+		rows, err := ctx.Query(Conn, req.Key, ctx.ArrangeBindVars(req.Key, args)...)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -167,7 +167,7 @@ func main() {
 		// render the page to the client
 		err = templates.ExecuteTemplate(w, "query.html.tmpl", respdata)
 		if err != nil {
-			err = errors.New(fmt.Sprintf("Could not render template: %s", err))
+			err = fmt.Errorf("Could not render template: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
