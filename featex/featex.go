@@ -17,8 +17,8 @@ type QError struct {
 	msg string
 }
 
-func (err QError) Error() string  {
-	return fmt.Sprintf("key=%s: %msg", err.key, err.msg)
+func (err QError) Error() string {
+	return fmt.Sprintf("key=%s: msg=%s", err.key, err.msg)
 }
 
 // A Query is a structure that holds the
