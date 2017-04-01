@@ -35,7 +35,7 @@ func RowMap(f func(rows *sql.Rows) (bool, error), rows *sql.Rows) error {
 			log.Error("scan error row number: ", i)
 			return err
 		}
-		i += 1
+		i++
 		if !cont {
 			break
 		}
@@ -50,11 +50,12 @@ func RowMap(f func(rows *sql.Rows) (bool, error), rows *sql.Rows) error {
 
 }
 
+// WriteString writes out a string as if it were a []byte
 func WriteString(w io.Writer, s string) (int, error) {
 	return w.Write([]byte(s))
 }
 
-// Writes a series of rows as a table of featex.Features.
+// WriteTable writes a series of rows as a table of featex.Features.
 // The io.Writer should be a buffer of some kind that will get passed to
 // an html template as a template.HTML(tablew.Bytes()) object.
 // Otherwise, the table tags will be escaped and break your page.
@@ -64,28 +65,30 @@ func WriteTable(tablew io.Writer, rows *sql.Rows) (int, error) {
 	var i = 0
 	var row featex.Feature
 	err := RowMap(func(r *sql.Rows) (bool, error) {
-		i += 1
-		if i > RESPONSE_LIMIT {
+		i++
+		if i > ResponseLimit {
 			// false means to terminate
 			return false, nil
-		} else {
-			// get the value out of the db cursor
-			if err := rows.Scan(&row.Personid, &row.Start_date, &row.End_date, &row.Concept_id, &row.Concept_type); err != nil {
-				log.Error(err)
-				return false, err
-			}
-			// write one row to the output stream
-			fmt.Fprintf(tablew, "<tr><td>%d</td> <td>%s</td> <td> %s</td> <td> %d</td> <td> %s</td></tr>\n",
-				row.Personid.Int64, row.Start_date.String,
-				row.End_date.String, row.Concept_id.Int64, row.Concept_type)
-			// true means continue
-			return true,  nil
-		}}, rows)
-	if err != nil{
+		}
+		// get the value out of the db cursor
+		if err := rows.Scan(&row.PersonID, &row.StartDate, &row.EndDate, &row.ConceptID, &row.ConceptType); err != nil {
+			log.Error(err)
+			return false, err
+		}
+		// write one row to the output stream
+		fmt.Fprintf(tablew, "<tr><td>%d</td> <td>%s</td> <td> %s</td> <td> %d</td> <td> %s</td></tr>\n",
+			row.PersonID.Int64, row.StartDate.String,
+			row.EndDate.String, row.ConceptID.Int64, row.ConceptType)
+		// true means continue
+		return true, nil
+
+	}, rows)
+	if err != nil {
 		return i, err
 	}
 	return i, nil
 }
+
 var headelt = template.HTML(`<head>
 <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/flatly/bootstrap.min.css" rel="stylesheet" integrity="sha384-+ENW/yibaokMnme+vBLnHMphUYxHs34h9lpdbSLuAwGkOKFRl4C34WkjazBtb7eT" crossorigin="anonymous">
 <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/styles/default.min.css">
@@ -94,6 +97,7 @@ var headelt = template.HTML(`<head>
 </head>`)
 
 var tableheader = template.HTML(`<table class="table table-stripped"><tr>Person, Start Date, End Date, ConceptID, Feature Type</tr>`)
+
 func main() {
 	// Set up command line flag.
 	err := featex.Config()
@@ -112,7 +116,7 @@ func main() {
 	}
 
 	// prepare the query map which holds the queries as strings
-	ctx := featex.Context{"./sql", make(map[string]featex.Query)}
+	ctx := featex.Context{Querypath: "./sql", Queries: make(map[string]featex.Query)}
 	log.Info("Loading queries")
 	keys := []string{"demographics", "demographics_historical", "features", "condition", "drugs", "drug_era", "milenial_features"}
 	ctx.LoadQueries(keys)
@@ -126,8 +130,8 @@ func main() {
 	log.Info("Database connected")
 
 	// load the templates into a template cache panic on error.
-	var templates = template.Must(template.ParseFiles("templates/html/queries.html.tmpl", "templates/html/query.html.tmpl"))
-	log.WithFields(log.Fields{"Templates":templates}).Info("Read Templates")
+	var templates = template.Must(template.ParseFiles("templates/html/queries.html.tmpl", "templates/html/query.html.tmpl", "templates/html/index.html.tmpl"))
+	log.WithFields(log.Fields{"Templates": templates}).Info("Read Templates")
 
 	// set up the query handler with the current Context and DB connection
 	queryhandler := func(w http.ResponseWriter, r *http.Request) {
@@ -157,9 +161,9 @@ func main() {
 		tablew.Flush()
 		byts, err := json.Marshal(req)
 		var respdata = map[string]interface{}{"Args": string(byts),
-			"QueryText":                          ctx.Queries[req.Key].Text,
-			"Tableheader":                        tableheader,
-			"Table":                              template.HTML(table.Bytes())}
+			"QueryText":   ctx.Queries[req.Key].Text,
+			"Tableheader": tableheader,
+			"Table":       template.HTML(table.Bytes())}
 		// render the page to the client
 		err = templates.ExecuteTemplate(w, "query.html.tmpl", respdata)
 		if err != nil {

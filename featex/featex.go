@@ -23,18 +23,18 @@ func (err QError) Error() string {
 
 // A Query is a structure that holds the
 type Query struct {
-	Filename string    // the filename from which the query was read
-	Text	string     // the raw text of the query
-	Bindvars []string  // the names of the query parameters in order expected by the DB
+	Filename string   // the filename from which the query was read
+	Text     string   // the raw text of the query
+	Bindvars []string // the names of the query parameters in order expected by the DB
 
 }
 
 // ArrangeBindVars takes a map containing values you want to bind into the parameters of the query
 // and arranges them in the order necessary for the sqldriver to process them. Uses default values of the go type
 // if no value is found for any key.
-func (q Query) ArrangeBindVars(values map[string]string) []interface{}{
+func (q Query) ArrangeBindVars(values map[string]string) []interface{} {
 	args := make([]interface{}, len(q.Bindvars))
-	for i, bv := range q.Bindvars{
+	for i, bv := range q.Bindvars {
 		val, ok := values[bv]
 		if !ok {
 			log.Warnf("Missing Var: pos=%d varname=%s ", i, bv)
@@ -46,16 +46,16 @@ func (q Query) ArrangeBindVars(values map[string]string) []interface{}{
 
 // A Context holds all the queries in a map keyed by their names
 type Context struct {
-	Querypath string         // the default directory for searching for queries
-	Queries map[string]Query // names -> Query structs
+	Querypath string           // the default directory for searching for queries
+	Queries   map[string]Query // names -> Query structs
 }
 
 // LoadQueries from the filesystem given a list of keys.
 func (ctx *Context) LoadQueries(keys []string) error {
 	log.Info(ctx.Querypath)
-	for _, key := range keys{
+	for _, key := range keys {
 		q, err := ctx.LoadQuery(key)
-		if err != nil{
+		if err != nil {
 			log.Error(err)
 			return QError{key, "Could not load query associated with key"}
 		}
@@ -79,12 +79,12 @@ func (ctx *Context) LoadQuery(key string) (Query, error) {
 		pth = path.Join(ctx.Querypath, pth)
 	}
 	fp, err := os.Open(pth)
-	if err != nil{
+	if err != nil {
 		log.Errorf("%s: err", key)
 		return q, err
 	}
 	b, err := ioutil.ReadAll(fp)
-	if err != nil{
+	if err != nil {
 		log.Error(err)
 		return q, nil
 	}
@@ -97,7 +97,7 @@ func (ctx *Context) LoadQuery(key string) (Query, error) {
 // Query uses the key to find a query from the context and executes the query against the database
 // the results come back as a *sql.Rows. The query parameters are passed as varargs argument to this function
 // parameters to the query can be converted using the ctx.ArrangeBindVars(string, map[string]interface{}) function.
-func (ctx *Context) Query(db sql.DB, key string, args...interface{})  (*sql.Rows, error) {
+func (ctx *Context) Query(db *sql.DB, key string, args ...interface{}) (*sql.Rows, error) {
 	var res *sql.Rows
 	qry, ok := ctx.Queries[key]
 	if !ok {
@@ -108,14 +108,14 @@ func (ctx *Context) Query(db sql.DB, key string, args...interface{})  (*sql.Rows
 		return res, QError{key, "q.Text is empty probably not properly read from file."}
 	}
 	res, err := db.Query(qry.Text, args...)
-	if err != nil{
+	if err != nil {
 		log.Debug(qry.Text)
 		return res, err
 	}
 	return res, err
 }
 
-// ArrangeBindVars: look up a query by key and then apply Query.ArrangeBindVars to that query.
+// ArrangeBindVars looks up a query by key and then apply Query.ArrangeBindVars to that query.
 func (ctx *Context) ArrangeBindVars(key string, values map[string]string) []interface{} {
 	var args []interface{}
 	q, ok := ctx.Queries[key]
@@ -125,4 +125,3 @@ func (ctx *Context) ArrangeBindVars(key string, values map[string]string) []inte
 	args = q.ArrangeBindVars(values)
 	return args
 }
-

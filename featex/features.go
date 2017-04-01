@@ -23,17 +23,18 @@ func FmtDate(t time.Time) string {
 	return t.Format("2006-01-02")
 }
 
-//Println sproa feature as a row of a CSV table.
+// Fprintln writes a feature as a row of a CSV table.
+// Use with a bufio.Writer to build up the tables
 func (f Feature) Fprintln(w io.Writer) {
-	fmt.Fprintf(w, "%d, %s, %s, %d, %s\n", f.Personid.Int64, f.Start_date.String,
-		f.End_date.String, f.Concept_id.Int64, f.Concept_type)
+	fmt.Fprintf(w, "%d, %s, %s, %d, %s\n", f.PersonID.Int64, f.StartDate.String,
+		f.EndDate.String, f.ConceptID.Int64, f.ConceptType)
 }
 
 // CSVRow takes a row of the feature matrix and prints it out as a CSV line to os.Stdout.
 // rows is a the result of running a sql.Query
 func CSVRow(rows *sql.Rows, w io.Writer) (bool, error) {
 	var row Feature
-	if err := rows.Scan(&row.Personid, &row.Start_date, &row.End_date, &row.Concept_id, &row.Concept_type); err != nil {
+	if err := rows.Scan(&row.PersonID, &row.StartDate, &row.EndDate, &row.ConceptID, &row.ConceptType); err != nil {
 		log.Error(err)
 		return false, err
 	}

@@ -30,7 +30,7 @@ func TestContext(t *testing.T) {
 	viper.SetConfigType("yaml") // or viper.SetConfigType("YAML")
 
 	var err = viper.ReadConfig(bytes.NewBuffer(yamlExample))
-	if err != nil{
+	if err != nil {
 		t.Fatal(err)
 	}
 	s := viper.GetString("features.demographics.Filename")
@@ -59,11 +59,11 @@ func TestContext(t *testing.T) {
 
 	key := "features"
 	// execute the query and get a handle to the result
-	args := ctx.ArrangeBindVars(key, map[string]string{"person":"2"})
-	if args[0] != "2"{
+	args := ctx.ArrangeBindVars(key, map[string]string{"person": "2"})
+	if args[0] != "2" {
 		t.Fatal("Failed to arrange bindvars for query")
 	}
-	rows, err := ctx.Query(*Conn, key, args...)
+	rows, err := ctx.Query(Conn, key, args...)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,8 +75,8 @@ func TestContext(t *testing.T) {
 
 func TestQuery_ArrangeBindVars(t *testing.T) {
 	q := Query{"./dummy.sql", "Select * from Table where a = ?", []string{"wclause"}}
-	args := q.ArrangeBindVars(map[string]string{"wclause":"2"})
-	if args[0] !=  "2"{
+	args := q.ArrangeBindVars(map[string]string{"wclause": "2"})
+	if args[0] != "2" {
 		t.Fatal("Failed to arrange bindvars for a single query")
 	}
 }
