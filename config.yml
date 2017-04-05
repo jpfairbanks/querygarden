@@ -9,6 +9,7 @@ scopes:
   - drugs
   - drug_era
   - milenial_features
+  - bulk_features
 demographics:
   Template: "demographics.sql.tmpl"
   Filename: "demographics.sql"
@@ -38,3 +39,9 @@ milenial_features:
   Filename: milenial_features.sql
   Constraint: WHERE PT.year_of_birth > 1980
   Persontable: person
+bulk_features:
+  Template: bulk.sql.tmpl
+  Filename: bulkfeatures.sql
+  Table: features
+  Fields: "(job_id, person_id, cohort_start_date, cohort_end_date, concept_id, value, type)"
+  Select: "select ?, person_id, cohort_start_date, cohort_end_date, 'drugs'"
