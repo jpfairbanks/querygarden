@@ -3,6 +3,7 @@ package featex
 import (
 	"bytes"
 	"database/sql"
+	"fmt"
 	"log"
 	"strings"
 	"text/template"
@@ -51,12 +52,19 @@ func TestConnection(t *testing.T) {
 	}
 }
 
-//QueryInt runs a query that returns a single int and returns that integer fails the test on error
-// useful for running a count query as part of a test.
-func QueryInt(t *testing.T, conn *sql.DB, query string, args ...interface{}) (int, error) {
+// QueryInt runs a query that returns a single int and returns that integer
+// useful for running count queries.
+func QueryInt(conn *sql.DB, query string, args ...interface{}) (int, error) {
 	var res int
 	row := conn.QueryRow(query, args...)
 	err := row.Scan(&res)
+	return res, err
+}
+
+// MustQueryInt runs a query that returns a single int and returns that integer fails the test on error
+// useful for running a count query as part of a test.
+func MustQueryInt(t *testing.T, conn *sql.DB, query string, args ...interface{}) (int, error) {
+	res, err := QueryInt(conn, query, args...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +78,7 @@ func TestInsertion(t *testing.T) {
 	var count int
 	conn, err := dbconnect(t)
 	q := `insert into results_lite_synpuf2.feature_jobs (created, description) values (now(), 'test job 1') returning job_id`
-	job_id, _ = QueryInt(t, conn, q)
+	job_id, _ = MustQueryInt(t, conn, q)
 	q = `insert into results_lite_synpuf2.features (job_id, concept_id, value, type)
                   values ($1, $2, 1, 'drug' )`
 	_, err = conn.Query(q, job_id, concept_id)
@@ -79,24 +87,34 @@ func TestInsertion(t *testing.T) {
 	}
 
 	q = `select count(*) from results_lite_synpuf2.features where concept_id=$1`
-	count, _ = QueryInt(t, conn, q, concept_id)
+	count, _ = MustQueryInt(t, conn, q, concept_id)
 	t.Logf("Count of matching rows = %d", count)
 	if count < 1 {
 		t.Fatal("Count does not match")
 	}
 }
 
-func NewJob(t *testing.T, conn *sql.DB, args ...interface{}) (int, error) {
+// NewJob execute the query for making a new feature jobs.
+func NewJob(conn *sql.DB, opts BulkOptions, args ...interface{}) (int, error) {
 	var s string
 	tpl := template.New("job")
-	tpl, err := tpl.Parse(`insert into {{.schema}}.feature_jobs (created, description) values (now(), $1) returning job_id`)
+	tpl, err := tpl.Parse(`insert into {{.Schema}}.{{.JobTable}} (created, description) values (now(), $1) returning job_id`)
 	var q bytes.Buffer
-	kwargs := map[string]interface{}{"schema": "results_lite_synpuf2"}
-	tpl.Execute(&q, kwargs)
+	tpl.Execute(&q, opts)
 	s = q.String()
-	t.Logf("job query: %s", s)
-	job_id, err := QueryInt(t, conn, s, args...)
+	log.Printf("job query: %s", s)
+	job_id, err := QueryInt(conn, s, args...)
 	return job_id, err
+}
+
+// BulkOptions configuration for the bulk queries.
+type BulkOptions struct {
+	Schema      string
+	Table       string
+	JobTable    string
+	Positional  int
+	Description string
+	Selectstmt  string
 }
 
 // BulkTemplate: get or create the template for wrapping a select statement with an insert into select clause
@@ -111,11 +129,18 @@ func BulkTemplate() (*template.Template, error) {
 	return tpl, nil
 }
 
-type BulkOptions struct {
-	Schema     string
-	Table      string
-	Positional int
-	Selectstmt string
+func CountInsertionsQuery(opt BulkOptions) (query string, err error) {
+	var q bytes.Buffer
+	tpl := template.New("countInsertions")
+	tpl, err = tpl.Parse("select count(*) from {{.Schema}}.{{.Table}} where job_id = $1")
+	if err != nil {
+		return
+	}
+	err = tpl.Execute(&q, opt)
+	if err != nil {
+		return
+	}
+	return q.String(), nil
 }
 
 // Wrap: converts a select statement into a query that inserts the results into the results table.
@@ -139,6 +164,40 @@ func Wrap(query string, kwargs BulkOptions) (string, error) {
 	return s, nil
 }
 
+// BulkFeatures takes a select query and bulk query options wraps it in the BulkTemplate query
+// for inserting into the results table. It first creates a new job in the job table, so that you
+// can get the results by filtering the features table by the job_id
+func BulkFeatures(conn *sql.DB, query string, opt BulkOptions) (job_id int, err error) {
+	var bulk_query string
+	var countInsertions string
+	bulk_query, err = Wrap(query, opt)
+	if err != nil {
+		return
+	}
+	job_id, err = NewJob(conn, opt, opt.Description)
+	if err != nil {
+		return
+	}
+	_, err = conn.Query(bulk_query, job_id)
+	if err != nil {
+		return
+	}
+	countInsertions, err = CountInsertionsQuery(opt)
+	if err != nil {
+		return
+	}
+	count, err := QueryInt(conn, countInsertions, job_id)
+	if err != nil {
+		return
+	}
+	var c int = 1
+	if count < c {
+		err = fmt.Errorf("Insertion did not yield any values")
+		return
+	}
+	return
+}
+
 func TestWrap(t *testing.T) {
 	var err error
 	var kwargs BulkOptions
@@ -148,9 +207,11 @@ func TestWrap(t *testing.T) {
 	      WHERE person.year_of_birth > 1900
 	      ORDER BY person_id ASC, type ASC, concept_id ASC, value ASC;`
 	kwargs = BulkOptions{
-		Schema:     "results_lite_synpuf2",
-		Table:      "features",
-		Positional: 1,
+		Schema:      "results_lite_synpuf2",
+		Table:       "features",
+		JobTable:    "feature_jobs",
+		Positional:  1,
+		Description: "TestWrap1",
 	}
 	bulk_query, err := Wrap(q, kwargs)
 	t.Logf("wrapped query: %s", bulk_query)
@@ -166,7 +227,8 @@ func TestWrap(t *testing.T) {
 	if conn == nil {
 		t.Fatal("Could not connect to DB")
 	}
-	job_id, err := NewJob(t, conn, "TestWrap1")
+	t.Logf("Creating job")
+	job_id, err := NewJob(conn, kwargs, kwargs.Description)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +238,7 @@ func TestWrap(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("insertion successful")
-	count, err := QueryInt(t, conn, "select count(*) from results_lite_synpuf2.features where job_id = $1", job_id)
+	count, err := MustQueryInt(t, conn, "select count(*) from results_lite_synpuf2.features where job_id = $1", job_id)
 	if err != nil {
 		t.Fatal(err)
 	}
