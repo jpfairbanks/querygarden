@@ -29,15 +29,22 @@ func TestConnection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rows, err := conn.Query("select * from results_lite_synpuf2.features")
+	rows, err := conn.Query("select job_id, person_id, concept_id, type from results_lite_synpuf2.features")
 	if err != nil {
 		t.Fatal(err)
 	}
 	row := Feature{}
 	t.Logf("Feature table")
+	var job_id sql.NullInt64
 	for rows.Next() {
-		rows.Scan(&row.PersonID, &row.StartDate, &row.EndDate, &row.ConceptID, &row.ConceptType)
-		t.Logf("%v", row)
+		err := rows.Scan(&job_id, &row.PersonID, &row.ConceptID, &row.ConceptType)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !job_id.Valid {
+			t.Fatal("Job_id of a feature row is null!")
+		}
+		t.Logf("job_id:%d, row:%v", job_id.Int64, row)
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
