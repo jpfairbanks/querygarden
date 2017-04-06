@@ -30,13 +30,14 @@ func TestConnection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rows, err := conn.Query("select job_id, person_id, concept_id, type from results_lite_synpuf2.features")
+	rows, err := conn.Query("select job_id, person_id, concept_id, type from results_lite_synpuf2.features limit 10")
 	if err != nil {
 		t.Fatal(err)
 	}
 	row := Feature{}
 	t.Logf("Feature table")
 	var job_id sql.NullInt64
+	count := 0
 	for rows.Next() {
 		err := rows.Scan(&job_id, &row.PersonID, &row.ConceptID, &row.ConceptType)
 		if err != nil {
@@ -46,9 +47,14 @@ func TestConnection(t *testing.T) {
 			t.Fatal("Job_id of a feature row is null!")
 		}
 		t.Logf("job_id:%d, row:%v", job_id.Int64, row)
+		count += 1
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
+	}
+
+	if count != 10 {
+		t.Fatalf("Incorrect number of rows returned (limit 10): %d", count)
 	}
 }
 
