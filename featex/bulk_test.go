@@ -127,14 +127,15 @@ type BulkOptions struct {
 // this template requires fields for "positional" and
 func BulkTemplate() (*template.Template, error) {
 	tpl := template.New("bulk")
-	tpl, err := tpl.Parse(`insert into {{.Schema}}.{{.Table}} (job_id, person_id, concept_id, value, type)
-                  select ${{.Positional}} as job_id, person_id, concept_id, value, type from ({{.Selectstmt}}) as t;`)
+	tpl, err := tpl.Parse(`insert into {{.Schema}}.{{.Table}} (job_id, person_id, concept_id, value, type, start_date, end_date)
+                  select ${{.Positional}} as job_id, person_id, concept_id, value, type, start_date, end_date from ({{.Selectstmt}}) as t;`)
 	if err != nil {
 		return tpl, err
 	}
 	return tpl, nil
 }
 
+// CountInsertionsQuery get the query string for counting the number of features associated with a job_id.
 func CountInsertionsQuery(opt BulkOptions) (query string, err error) {
 	var q bytes.Buffer
 	tpl := template.New("countInsertions")
@@ -184,6 +185,7 @@ func BulkFeatures(conn *sql.DB, query string, opt BulkOptions) (job_id int, err 
 	if err != nil {
 		return
 	}
+	log.Printf("bulk_query: %s", bulk_query)
 	_, err = conn.Query(bulk_query, job_id)
 	if err != nil {
 		return
@@ -204,53 +206,95 @@ func BulkFeatures(conn *sql.DB, query string, opt BulkOptions) (job_id int, err 
 	return
 }
 
+func ExecuteBulk(con *sql.DB, query string, opt BulkOptions) (job_id int, err error) {
+	job_id, err = BulkFeatures(con, query, opt)
+	if err != nil {
+		return
+	}
+	if job_id < 1 {
+		return 0, fmt.Errorf("Bad Job_id < 1")
+	}
+	return
+}
+
+var demoquery string = `select
+    person.person_id, gender_concept_id as concept_id, 1 as value, 'gender' as type,
+  obs.observation_period_start_date as start_date,
+  obs.observation_period_end_date as end_date
+ from lite_synpuf2.person
+  LEFT JOIN lite_synpuf2.observation_period as obs on person.person_id = obs.person_id
+  UNION
+    select person.person_id, race_concept_id as concept_id, 1 as value, 'race' as type,
+  obs.observation_period_start_date as start_date,
+  obs.observation_period_end_date as end_date
+ from lite_synpuf2.person
+  LEFT JOIN lite_synpuf2.observation_period as obs on person.person_id = obs.person_id
+  WHERE person.year_of_birth > 1900
+  ORDER BY person_id ASC, type ASC, concept_id ASC, value ASC;`
+
+var drugquery string = `
+select person.person_id,
+  obs.observation_period_start_date as start_date,
+  obs.observation_period_end_date as end_date,
+  de.drug_concept_id as concept_id,
+  1 as value,
+  'drug' as type
+from lite_synpuf2.person as person
+LEFT JOIN lite_synpuf2.drug_exposure as de on de.person_id = person.person_id
+  LEFT JOIN lite_synpuf2.observation_period as obs on person.person_id = obs.person_id
+  WHERE person.year_of_birth > 1900
+  ORDER BY person_id ASC, type ASC, concept_id ASC, value ASC
+`
+
+var procedurequery string = `
+select person.person_id,
+  obs.observation_period_start_date as start_date,
+  obs.observation_period_end_date as end_date,
+  pr.procedure_concept_id as concept_id,
+  1 as value,
+  'procedure' as type
+from lite_synpuf2.person as person
+LEFT JOIN lite_synpuf2.procedure_occurrence as pr on pr.person_id = person.person_id
+  LEFT JOIN lite_synpuf2.observation_period as obs on person.person_id = obs.person_id
+  WHERE person.year_of_birth > 1900
+  ORDER BY person_id ASC, type ASC, concept_id ASC, value ASC
+`
+var conditionquery string = `
+select person.person_id,
+  obs.observation_period_start_date as start_date,
+  obs.observation_period_end_date as end_date,
+  pr.condition_concept_id as concept_id,
+  1 as value,
+  'condition' as type
+from lite_synpuf2.person as person
+LEFT JOIN lite_synpuf2.condition_occurrence as pr on pr.person_id = person.person_id
+  LEFT JOIN lite_synpuf2.observation_period as obs on person.person_id = obs.person_id
+  WHERE person.year_of_birth > 1900
+  ORDER BY person_id ASC, type ASC, concept_id ASC, value ASC
+`
+
 func TestWrap(t *testing.T) {
 	var err error
-	var kwargs BulkOptions
-	q := `select person_id, gender_concept_id as concept_id, 1 as value, 'gender' as type from lite_synpuf2.person
-	      UNION
-	      select person_id, race_concept_id as concept_id, 1 as value, 'race' as type from lite_synpuf2.person
-	      WHERE person.year_of_birth > 1900
-	      ORDER BY person_id ASC, type ASC, concept_id ASC, value ASC;`
-	kwargs = BulkOptions{
+	kwargs := BulkOptions{
 		Schema:      "results_lite_synpuf2",
 		Table:       "features",
 		JobTable:    "feature_jobs",
 		Positional:  1,
-		Description: "TestWrap1",
-	}
-	bulk_query, err := Wrap(q, kwargs)
-	t.Logf("wrapped query: %s", bulk_query)
-	if err != nil {
-		t.Fatal(err)
+		Description: "",
 	}
 
 	conn, err := dbconnect(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("connection: %v", conn)
-	if conn == nil {
-		t.Fatal("Could not connect to DB")
+	queries := []string{demoquery, drugquery, procedurequery, conditionquery}
+	descriptions := []string{"demoquery", "drugquery", "procedurequery", "conditionquery"}
+	for i, q := range queries {
+		kwargs.Description = descriptions[i]
+		job_id, err := ExecuteBulk(conn, q, kwargs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		log.Printf("job_id: %d", job_id)
 	}
-	t.Logf("Creating job")
-	job_id, err := NewJob(conn, kwargs, kwargs.Description)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("made job")
-	_, err = conn.Query(bulk_query, job_id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("insertion successful")
-	count, err := MustQueryInt(t, conn, "select count(*) from results_lite_synpuf2.features where job_id = $1", job_id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var c int = 10
-	if count < c {
-		t.Fatalf("Failed to insert at least %d feature rows", c)
-	}
-	t.Logf("query successful")
 }
