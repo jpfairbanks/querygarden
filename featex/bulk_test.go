@@ -99,62 +99,6 @@ func ExecuteBulk(con *sql.DB, query string, opt BulkOptions) (job_id int, err er
 	return
 }
 
-var demoquery string = `select
-    person.person_id, gender_concept_id as concept_id, 1 as value, 'gender' as type,
-  obs.observation_period_start_date as start_date,
-  obs.observation_period_end_date as end_date
- from lite_synpuf2.person
-  LEFT JOIN lite_synpuf2.observation_period as obs on person.person_id = obs.person_id
-  UNION
-    select person.person_id, race_concept_id as concept_id, 1 as value, 'race' as type,
-  obs.observation_period_start_date as start_date,
-  obs.observation_period_end_date as end_date
- from lite_synpuf2.person
-  LEFT JOIN lite_synpuf2.observation_period as obs on person.person_id = obs.person_id
-  WHERE person.year_of_birth > 1900
-  ORDER BY person_id ASC, type ASC, concept_id ASC, value ASC;`
-
-var drugquery string = `
-select person.person_id,
-  obs.observation_period_start_date as start_date,
-  obs.observation_period_end_date as end_date,
-  de.drug_concept_id as concept_id,
-  1 as value,
-  'drug' as type
-from lite_synpuf2.person as person
-LEFT JOIN lite_synpuf2.drug_exposure as de on de.person_id = person.person_id
-  LEFT JOIN lite_synpuf2.observation_period as obs on person.person_id = obs.person_id
-  WHERE person.year_of_birth > 1900
-  ORDER BY person_id ASC, type ASC, concept_id ASC, value ASC
-`
-
-var procedurequery string = `
-select person.person_id,
-  obs.observation_period_start_date as start_date,
-  obs.observation_period_end_date as end_date,
-  pr.procedure_concept_id as concept_id,
-  1 as value,
-  'procedure' as type
-from lite_synpuf2.person as person
-LEFT JOIN lite_synpuf2.procedure_occurrence as pr on pr.person_id = person.person_id
-  LEFT JOIN lite_synpuf2.observation_period as obs on person.person_id = obs.person_id
-  WHERE person.year_of_birth > 1900
-  ORDER BY person_id ASC, type ASC, concept_id ASC, value ASC
-`
-var conditionquery string = `
-select person.person_id,
-  obs.observation_period_start_date as start_date,
-  obs.observation_period_end_date as end_date,
-  pr.condition_concept_id as concept_id,
-  1 as value,
-  'condition' as type
-from lite_synpuf2.person as person
-LEFT JOIN lite_synpuf2.condition_occurrence as pr on pr.person_id = person.person_id
-  LEFT JOIN lite_synpuf2.observation_period as obs on person.person_id = obs.person_id
-  WHERE person.year_of_birth > 1900
-  ORDER BY person_id ASC, type ASC, concept_id ASC, value ASC
-`
-
 func TestWrap(t *testing.T) {
 	var err error
 	kwargs := BulkOptions{
@@ -169,7 +113,7 @@ func TestWrap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	queries := []string{demoquery, drugquery, procedurequery, conditionquery}
+	queries := []string{OMOPQ.demographic, OMOPQ.drug, OMOPQ.procedure, OMOPQ.condition}
 	descriptions := []string{"demoquery", "drugquery", "procedurequery", "conditionquery"}
 	for i, q := range queries {
 		kwargs.Description = descriptions[i]
