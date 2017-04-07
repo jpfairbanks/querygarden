@@ -115,6 +115,15 @@ func (ctx *Context) Query(db *sql.DB, key string, args ...interface{}) (*sql.Row
 	return res, err
 }
 
+// QueryInt runs a query that returns a single int and returns that integer
+// useful for running count queries.
+func QueryInt(conn *sql.DB, query string, args ...interface{}) (int, error) {
+	var res int
+	row := conn.QueryRow(query, args...)
+	err := row.Scan(&res)
+	return res, err
+}
+
 // ArrangeBindVars looks up a query by key and then apply Query.ArrangeBindVars to that query.
 func (ctx *Context) ArrangeBindVars(key string, values map[string]string) []interface{} {
 	var args []interface{}
