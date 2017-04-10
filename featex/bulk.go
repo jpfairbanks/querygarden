@@ -52,7 +52,7 @@ func NewBulkTemplates() (bt BulkTemplates) {
 	return
 }
 
-var bulkTemplates BulkTemplates = NewBulkTemplates()
+var BulkTemps BulkTemplates = NewBulkTemplates()
 
 // RenderTemplate execute a template with BulkOptions
 func RenderTemplate(tpl *template.Template, opts BulkOptions) (string, error) {
@@ -65,7 +65,7 @@ func RenderTemplate(tpl *template.Template, opts BulkOptions) (string, error) {
 
 // NewJob get the query for making a new feature jobs.
 func NewJob(opts BulkOptions) (string, error) {
-	tpl := bulkTemplates.NewJob
+	tpl := BulkTemps.NewJob
 	s, err := RenderTemplate(tpl, opts)
 	log.Printf("job query: %s", s)
 	return s, err
@@ -73,11 +73,11 @@ func NewJob(opts BulkOptions) (string, error) {
 
 // CountInsertionsQuery get the query string for counting the number of features associated with a job_id.
 func CountInsertionsQuery(opt BulkOptions) (query string, err error) {
-	tpl := bulkTemplates.CountInsertions
+	tpl := BulkTemps.CountInsertions
 	return RenderTemplate(tpl, opt)
 }
 
-// Wrap: converts a select statement into a query that inserts the results into the results table.
+// Wrap converts a select statement into a query that inserts the results into the results table.
 // This allows users to define results in terms of the select query that they would write in order
 // to retrieve the data and the system will convert this into an insertion to the results table.
 func Wrap(query string, kwargs BulkOptions) (string, error) {
@@ -85,7 +85,7 @@ func Wrap(query string, kwargs BulkOptions) (string, error) {
 
 	kwargs.Selectstmt = strings.TrimRight(query, ";")
 
-	tpl = bulkTemplates.Insert
+	tpl = BulkTemps.Insert
 	return RenderTemplate(tpl, kwargs)
 }
 
@@ -125,16 +125,16 @@ func (ec *ErrConnection) QueryInt(query string, args ...interface{}) int {
 // BulkFeatures takes a select query and bulk query options wraps it in the BulkTemplate query
 // for inserting into the results table. It first creates a new job in the job table, so that you
 // can get the results by filtering the features table by the job_id
-func BulkFeatures(db *sql.DB, query string, opt BulkOptions) (job_id int, err error) {
+func BulkFeatures(db *sql.DB, query string, opt BulkOptions, args ...interface{}) (JobID int, err error) {
 	// make queries
-	var job_query string       // query to add a job
-	var bulk_query string      // the query that does bulk insertions
+	var jobQuery string        // query to add a job
+	var bulkQuery string       // the query that does bulk insertions
 	var countInsertions string // a query to count that we did insertions
-	job_query, err = NewJob(opt)
+	jobQuery, err = NewJob(opt)
 	if err != nil {
 		return
 	}
-	bulk_query, err = Wrap(query, opt)
+	bulkQuery, err = Wrap(query, opt)
 	if err != nil {
 		return
 	}
@@ -146,12 +146,13 @@ func BulkFeatures(db *sql.DB, query string, opt BulkOptions) (job_id int, err er
 	// Modify the database.
 	// Insert a new job into the job table
 	conn := ErrConnection{Conn: db}
-	job_id = conn.QueryInt(job_query, opt.Description)
-	log.Printf("bulk_query: %s", bulk_query)
+	JobID = conn.QueryInt(jobQuery, opt.Description)
+	log.Printf("bulkQuery: %s", bulkQuery)
 	// do the insertions
-	_ = conn.Query(bulk_query, job_id)
+	args = append(args, JobID)
+	_ = conn.Query(bulkQuery, args...)
 	// count how many we did
-	count := conn.QueryInt(countInsertions, job_id)
+	count := conn.QueryInt(countInsertions, JobID)
 	err = conn.Err
 	if err != nil {
 		return
@@ -163,4 +164,12 @@ func BulkFeatures(db *sql.DB, query string, opt BulkOptions) (job_id int, err er
 		return
 	}
 	return
+}
+
+type BulkResponse struct {
+	JobID       int
+	SelectStmt  string
+	SourceQuery Query
+	BulkOptions
+	Err error
 }

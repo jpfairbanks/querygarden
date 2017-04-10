@@ -123,4 +123,9 @@ func TestWrap(t *testing.T) {
 		}
 		log.Printf("job_id: %d", job_id)
 	}
+	// check the number of features per job
+	// select count(*) from results_lite_synpuf2.features
+	// select job_id, count(job_id) from results_lite_synpuf2.features GROUP BY job_id
+	// ORDER BY job_id DESC
+
 }

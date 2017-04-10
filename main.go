@@ -15,6 +15,7 @@ import (
 	"github.com/jpfairbanks/featex/featex"
 	"github.com/jpfairbanks/featex/log"
 	_ "github.com/lib/pq"
+	"strings"
 )
 
 // ResponseLimit is the maximum number of values to pass as an HTML table
@@ -64,6 +65,7 @@ func WriteString(w io.Writer, s string) (int, error) {
 func WriteTable(tablew io.Writer, rows *sql.Rows) (int, error) {
 	var i = 0
 	var row featex.Feature
+	var value int
 	err := RowMap(func(r *sql.Rows) (bool, error) {
 		i++
 		if i > ResponseLimit {
@@ -71,7 +73,7 @@ func WriteTable(tablew io.Writer, rows *sql.Rows) (int, error) {
 			return false, nil
 		}
 		// get the value out of the db cursor
-		if err := rows.Scan(&row.PersonID, &row.StartDate, &row.EndDate, &row.ConceptID, &row.ConceptType); err != nil {
+		if err := rows.Scan(&row.PersonID, &row.StartDate, &row.EndDate, &row.ConceptID, &row.ConceptType, &value); err != nil {
 			log.Error(err)
 			return false, err
 		}
@@ -98,6 +100,14 @@ var headelt = template.HTML(`<head>
 
 var tableheader = template.HTML(`<table class="table table-stripped"><tr>Person, Start Date, End Date, ConceptID, Feature Type</tr>`)
 
+//TakeFirst takes only the first argument for each key in the map.
+func TakeFirst(req featex.Request) map[string]string {
+	args := make(map[string]string)
+	for k, v := range req.Args {
+		args[k] = v[0]
+	}
+	return args
+}
 func main() {
 	// Set up command line flag.
 	err := featex.Config()
@@ -119,7 +129,10 @@ func main() {
 	ctx := featex.Context{Querypath: "./sql", Queries: make(map[string]featex.Query)}
 	log.Info("Loading queries")
 	keys := []string{"demographics", "demographics_historical", "features", "condition", "drugs", "drug_era", "milenial_features"}
-	ctx.LoadQueries(keys)
+	err = ctx.LoadQueries(keys)
+	if err != nil {
+		log.Fatal("Cannot load queries: ABORT!")
+	}
 
 	//prepare the database
 	var Conn *sql.DB
@@ -131,7 +144,7 @@ func main() {
 
 	// load the templates into a template cache panic on error.
 	var templates = template.Must(template.ParseFiles("templates/html/queries.html.tmpl", "templates/html/query.html.tmpl", "templates/html/index.html.tmpl"))
-	log.WithFields(log.Fields{"Templates": templates}).Info("Read Templates")
+	log.WithFields(log.Fields{"Templates": templates.DefinedTemplates()}).Info("Read Templates")
 
 	// set up the query handler with the current Context and DB connection
 	queryhandler := func(w http.ResponseWriter, r *http.Request) {
@@ -145,10 +158,7 @@ func main() {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
-		args := make(map[string]string)
-		for k, v := range req.Args {
-			args[k] = v[0]
-		}
+		args := TakeFirst(req)
 
 		// get the result from the DB
 		rows, err := ctx.Query(Conn, req.Key, ctx.ArrangeBindVars(req.Key, args)...)
@@ -191,6 +201,72 @@ func main() {
 		}
 	})
 
+	bulkhandler := func(w http.ResponseWriter, r *http.Request) {
+		//var err error
+		var resp *featex.BulkResponse = new(featex.BulkResponse)
+		w.Header().Set("Content-Type", "application/json")
+		route := r.URL.Path
+		parts := strings.Split(route, "/")
+		key := parts[2]
+		qry, ok := ctx.Queries[key]
+		if !ok {
+			http.Error(w, "Could not find key="+key, http.StatusBadRequest)
+			return
+		}
+
+		resp.SourceQuery = qry
+		log.WithFields(log.Fields{"key": key,
+			"route": route,
+			"query": qry}).Debug("Loaded Query for Bulk")
+
+		// getting the query arguments
+		req, err := featex.ParseRequest(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		qargs := TakeFirst(req)
+
+		log.WithFields(log.Fields{"key": key, "qargs": qargs}).Debug("parsed query arguments")
+
+		opts := featex.BulkOptions{Schema: "results_lite_synpuf2",
+			Table:       "features",
+			JobTable:    "feature_jobs",
+			Positional:  len(qry.Bindvars) + 1,
+			Description: "api query key=" + key,
+			Selectstmt:  qry.Text}
+		resp.BulkOptions = opts
+		// q, err := featex.RenderTemplate(featex.BulkTemps.Insert, opts)
+		// if err != nil {
+		// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+		// }
+		// log.WithFields(log.Fields{"insertquery": q}).Info("Insertion into bulk table")
+
+		log.Debug("calling BulkFeatures")
+		var jobID int
+		args := ctx.ArrangeBindVars(key, qargs)
+		log.WithFields(log.Fields{"key": key, "args": args}).Info("bulk query arguments:")
+		jobID, err = featex.BulkFeatures(Conn, qry.Text, opts, args...)
+		if err != nil {
+			http.Error(w, "bulk query failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		resp.JobID = jobID
+
+		resp.SelectStmt = fmt.Sprintf("select * from %s.%s where job_id=%d",
+			opts.Schema, opts.Table, resp.JobID)
+		js, err := json.MarshalIndent(resp, "", "  ")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		n, err := w.Write(js)
+		if err != nil {
+			log.WithFields(log.Fields{"key": key, "error": err, "bytes": n}).Error("failed to write response")
+			return
+		}
+
+	}
+	http.HandleFunc("/bulk/", bulkhandler)
 	addr := ":8080"
 	log.Infof("Serving on address: %s", addr)
 	http.ListenAndServe(addr, nil)
