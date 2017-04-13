@@ -24,12 +24,12 @@ features:
   bulk_drugs:
     Filename: "bulk_drugs.sql"
     bindvars: ["cohort"]
-  bulk_demographics:
-    Filename: "bulk_demographics.sql"
-    bindvars: ["cohort"]
+  # bulk_demographics:
+  #   Filename: "bulk_demographics.sql"
+  #   bindvars: ["cohort"]
   bulk_condition:
     Filename: "bulk_condition.sql"
     bindvars: ["cohort"]
-  builk_procedure:
+  bulk_procedure:
     Filename: "bulk_procedure.sql"
     bindvars: ["cohort"]

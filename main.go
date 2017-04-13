@@ -15,6 +15,7 @@ import (
 	"github.com/jpfairbanks/featex/featex"
 	"github.com/jpfairbanks/featex/log"
 	_ "github.com/lib/pq"
+	"github.com/spf13/viper"
 	"strings"
 )
 
@@ -128,7 +129,16 @@ func main() {
 	// prepare the query map which holds the queries as strings
 	ctx := featex.Context{Querypath: "./sql", Queries: make(map[string]featex.Query)}
 	log.Info("Loading queries")
-	keys := []string{"demographics", "demographics_historical", "features", "condition", "drugs", "drug_era", "milenial_features"}
+	// keys := []string{"demographics", "demographics_historical", "features", "condition", "drugs", "drug_era", "milenial_features"}
+
+	featuresconf := viper.GetStringMap("features")
+	keys := make([]string, len(featuresconf))
+	i := 0
+	for k := range featuresconf {
+		keys[i] = k
+		i++
+	}
+	log.Infof("The keys are: %v", keys)
 	err = ctx.LoadQueries(keys)
 	if err != nil {
 		log.Fatal("Cannot load queries: ABORT!")
@@ -211,6 +221,10 @@ func main() {
 		qry, ok := ctx.Queries[key]
 		if !ok {
 			http.Error(w, "Could not find key="+key, http.StatusBadRequest)
+			log.Debugf("Available Keys are: %v")
+			for k := range ctx.Queries {
+				log.Debugf("\t%s", k)
+			}
 			return
 		}
 
@@ -247,12 +261,8 @@ func main() {
 		args := ctx.ArrangeBindVars(key, qargs)
 		log.WithFields(log.Fields{"key": key, "args": args}).Info("bulk query arguments:")
 		jobID, err = featex.BulkFeatures(Conn, qry.Text, opts, args...)
-		if err != nil {
-			http.Error(w, "bulk query failed: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
 		resp.JobID = jobID
-
+		resp.Err = err
 		resp.SelectStmt = fmt.Sprintf("select * from %s.%s where job_id=%d",
 			opts.Schema, opts.Table, resp.JobID)
 		js, err := json.MarshalIndent(resp, "", "  ")
