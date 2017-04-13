@@ -1,0 +1,15 @@
+SELECT
+ person_id,
+ {{ .targettable }}_start_date AS start_date,
+ {{ .targettable }}_end_date   AS end_date,
+ {{ .concept }}_concept_id             concept_id,
+ '{{.concept}}'          AS type,
+ 1                        AS value
+FROM {{ .schema }}.{{ .targettable }}
+{{ if .cohorttable }}
+   -- cohort table : {{.cohorttable}}
+  RIGHT JOIN {{ .cohorttable }} on {{ .cohorttable }}.subject_id = person_id
+  -- end
+{{end}}
+{{ .whereclause }}
+ORDER BY person_id, type, start_date, end_date

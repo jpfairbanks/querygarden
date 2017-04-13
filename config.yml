@@ -10,6 +10,10 @@ scopes:
   - drug_era
   - milenial_features
   - bulk_features
+  - bulk_drugs
+  - bulk_condition
+  - bulk_demographic
+  - bulk_procedure
 demographics:
   Template: "demographics.sql.tmpl"
   Filename: "demographics.sql"
@@ -45,3 +49,31 @@ bulk_features:
   Table: features
   Fields: "(job_id, person_id, cohort_start_date, cohort_end_date, concept_id, value, type)"
   Select: "select ?, person_id, cohort_start_date, cohort_end_date, 'drugs'"
+bulk_drugs:
+  Template: plp.sql.template
+  Filename: bulk_drugs.sql
+  Targettable: drug_exposure
+  Concept: drug
+  Cohorttable: "results_mimic.cohort"
+  Whereclause: "WHERE cohort_definition_id= $1"
+bulk_condition:
+  Template: plp.sql.template
+  Filename: bulk_condition.sql
+  Targettable: condition_exposure
+  Concept: condition
+  Cohorttable: "results_mimic.cohort"
+  Whereclause: "WHERE cohort_definition_id= $1"
+bulk_procedure:
+  Template: plp.sql.template
+  Filename: bulk_procedure.sql
+  Targettable: procedure_exposure
+  Concept: procedure
+  Cohorttable: "results_mimic.cohort"
+  Whereclause: "WHERE cohort_definition_id= $1"
+bulk_demographic:
+  Template: plp.sql.template
+  Filename: bulk_demographic.sql
+  Targettable: demographic_exposure
+  Concept: demographic
+  Cohorttable: "results_mimic.cohort"
+  Whereclause: "WHERE cohort_definition_id= $1"
