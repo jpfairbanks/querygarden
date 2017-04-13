@@ -1,0 +1,28 @@
+
+CREATE TABLE {{ .results_schema }}.feature_jobs (
+  job_id INTEGER PRIMARY KEY NOT NULL DEFAULT nextval('feature_jobs_job_id_seq'::regclass),
+  created TIMESTAMP,
+  description CHARACTER VARYING(2048)
+);
+CREATE UNIQUE INDEX feature_jobs_job_id_uindex ON feature_jobs USING BTREE (job_id);
+COMMENT ON TABLE {{ .results_schema }}.feature_jobs IS 'Records the feature extraction jobs';
+
+
+CREATE TABLE {{ .results_schema }}.features (
+  feature_id INTEGER PRIMARY KEY NOT NULL DEFAULT nextval('features_feature_id_seq'::regclass),
+  job_id INTEGER,
+  person_id INTEGER,
+  start_date TIMESTAMP,
+  end_date TIMESTAMP,
+  concept_id INTEGER,
+  value INTEGER,
+  type CHARACTER VARYING(256),
+  FOREIGN KEY (concept_id) REFERENCES {{ .concept_schema }}.concept (concept_id)
+  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION,
+  FOREIGN KEY (job_id) REFERENCES {{ .results_schema }}.feature_jobs (job_id)
+  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION,
+  FOREIGN KEY (person_id) REFERENCES synpuf5.person (person_id)
+  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
+);
+CREATE UNIQUE INDEX features_feature_id_uindex ON features USING BTREE (feature_id);
+COMMENT ON TABLE {{ .results_schema }}.features IS 'Feature results for analytics';

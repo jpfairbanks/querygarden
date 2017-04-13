@@ -112,6 +112,8 @@ func TakeFirst(req featex.Request) map[string]string {
 func main() {
 	// Set up command line flag.
 	err := featex.Config()
+	resultsSchema := viper.GetString("global.rschema")
+	log.Infof("resultsSchema=%s", resultsSchema)
 	if err != nil {
 		panic(err)
 	}
@@ -243,7 +245,7 @@ func main() {
 
 		log.WithFields(log.Fields{"key": key, "qargs": qargs}).Debug("parsed query arguments")
 
-		opts := featex.BulkOptions{Schema: "results_lite_synpuf2",
+		opts := featex.BulkOptions{Schema: resultsSchema,
 			Table:       "features",
 			JobTable:    "feature_jobs",
 			Positional:  len(qry.Bindvars) + 1,

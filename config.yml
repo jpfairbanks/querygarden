@@ -1,5 +1,5 @@
 global:
-  schema: "lite_synpuf2"
+  schema: "mimic_v5"
   version: "5"
 scopes:
   - demographics
@@ -14,6 +14,7 @@ scopes:
   - bulk_condition
   - bulk_demographic
   - bulk_procedure
+  - migration_feature_tables
 demographics:
   Template: "demographics.sql.tmpl"
   Filename: "demographics.sql"
@@ -43,6 +44,11 @@ milenial_features:
   Filename: milenial_features.sql
   Constraint: WHERE PT.year_of_birth > 1980
   Persontable: person
+migration_feature_tables:
+  Template: sql/migration.tmpl
+  Filename: migration/feature_tables.sql
+  Results_schema: results_mimic
+  Concept_schema: mimic_v5
 bulk_features:
   Template: bulk.sql.tmpl
   Filename: bulkfeatures.sql
@@ -55,19 +61,21 @@ bulk_drugs:
   Targettable: drug_exposure
   Concept: drug
   Cohorttable: "results_mimic.cohort"
-  Whereclause: "WHERE cohort_definition_id= $1"
+  Whereclause: "WHERE cohort_definition_id= $1 and ( cohort_end_date > drug_exposure_start_date ) and not (drug_exposure_end_date < cohort_start_date)"
 bulk_condition:
   Template: plp.sql.template
   Filename: bulk_condition.sql
-  Targettable: condition_exposure
+  Targettable: condition_era
   Concept: condition
   Cohorttable: "results_mimic.cohort"
-  Whereclause: "WHERE cohort_definition_id= $1"
+  Whereclause: "WHERE cohort_definition_id= $1 and ( cohort_end_date > condition_era_start_date ) -- and not (condition_era_end_date < cohort_start_date)"
+  # historical_Whereclause: "WHERE cohort_definition_id= $1 and ( cohort_end_date > condition_era_start_date ) and (condition_era_end_date < cohort_start_date)"
 bulk_procedure:
   Template: plp.sql.template
   Filename: bulk_procedure.sql
-  Targettable: procedure_exposure
+  Targettable: procedure_occurrence
   Concept: procedure
+  Datefield : "procedure_date"
   Cohorttable: "results_mimic.cohort"
   Whereclause: "WHERE cohort_definition_id= $1"
 bulk_demographic:

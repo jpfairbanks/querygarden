@@ -1,7 +1,14 @@
 SELECT
  person_id,
- {{ .targettable }}_start_date AS start_date,
- {{ .targettable }}_end_date   AS end_date,
+ {{ if .datefield }}
+ -- only a single date field so special case
+  {{ .datefield }} as start_date,
+  {{ .datefield }} as end_date,
+ -- typical case has two date fields
+ {{ else }}
+  {{ .targettable }}_start_date AS start_date,
+  {{ .targettable }}_end_date   AS end_date,
+ {{ end }}
  {{ .concept }}_concept_id             concept_id,
  '{{.concept}}'          AS type,
  1                        AS value

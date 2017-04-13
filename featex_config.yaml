@@ -1,3 +1,6 @@
+global:
+  rschema: "results_mimic"
+  schema: "mimic_v5"
 features:
   demographics: {
     Filename: demographics.sql,
