@@ -24,6 +24,9 @@ help:
 	@echo '    make clean           Clean the directory tree.'
 	@echo
 
+generate:
+	@echo "generating code using go generate"
+	go generate
 build:
 	@echo "building ${BIN_NAME} ${VERSION}"
 	@echo "GOPATH=${GOPATH}"

@@ -9,6 +9,7 @@ scopes:
   - drugs
   - drug_era
   - milenial_features
+  - cohortpatients
   - bulk_features
   - bulk_drugs
   - bulk_condition
@@ -49,6 +50,18 @@ migration_feature_tables:
   Filename: migration/feature_tables.sql
   Results_schema: results_mimic
   Concept_schema: mimic_v5
+cohortpatients:
+  Template: selectwhere.sql.templ
+  Filename: cohortpatients.sql
+  Schema: results_mimic
+  Table: cohort
+  Fields: "subject_id as person_id,
+  cohort_start_date as start_date,
+  cohort_end_date as end_date,
+  cohort_definition_id as concept_id,
+  'cohort_id' as type,
+  1 as value"
+  Whereclause: "cohort_definition_id = $1"
 bulk_features:
   Template: bulk.sql.tmpl
   Filename: bulkfeatures.sql
@@ -58,10 +71,10 @@ bulk_features:
 bulk_drugs:
   Template: plp.sql.template
   Filename: bulk_drugs.sql
-  Targettable: drug_exposure
+  Targettable: drug_era
   Concept: drug
   Cohorttable: "results_mimic.cohort"
-  Whereclause: "WHERE cohort_definition_id= $1 and ( cohort_end_date > drug_exposure_start_date ) and not (drug_exposure_end_date < cohort_start_date)"
+  Whereclause: "WHERE cohort_definition_id= $1 and ( cohort_end_date > drug_era_start_date ) and not (drug_era_end_date < cohort_start_date)"
 bulk_condition:
   Template: plp.sql.template
   Filename: bulk_condition.sql
@@ -79,9 +92,12 @@ bulk_procedure:
   Cohorttable: "results_mimic.cohort"
   Whereclause: "WHERE cohort_definition_id= $1"
 bulk_demographic:
-  Template: plp.sql.template
-  Filename: bulk_demographic.sql
-  Targettable: demographic_exposure
+  Template: demographics_omop.sql.tmpl
+  Filename: bulk_demographics.sql
+  Targettable: person
   Concept: demographic
   Cohorttable: "results_mimic.cohort"
   Whereclause: "WHERE cohort_definition_id= $1"
+  Gender: true
+  Race: true
+

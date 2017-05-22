@@ -24,12 +24,15 @@ features:
   milenial_features:
     Filename: "milenial_features.sql"
     bindvars: []
+  cohortpatients:
+    Filename: "cohortpatients.sql"
+    bindvars: ["cohort"]
   bulk_drugs:
     Filename: "bulk_drugs.sql"
     bindvars: ["cohort"]
-  # bulk_demographics:
-  #   Filename: "bulk_demographics.sql"
-  #   bindvars: ["cohort"]
+  bulk_demographics:
+    Filename: "bulk_demographics.sql"
+    bindvars: ["cohort"]
   bulk_condition:
     Filename: "bulk_condition.sql"
     bindvars: ["cohort"]

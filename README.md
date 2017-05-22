@@ -73,3 +73,98 @@ yield keyword arguments in the web requests. The bindvars array is here to bridg
 The bindvars array is list of the names of the positional query parameters in the order of their positions.
 This tells the webserver how to arrange the keyword arguments that it receives in JSON or URL query parameters
 into the order that the query expects for positional arguments.
+
+# Conversation with Scott Brown
+scott.brown [12:17 PM] 
+I dunno
+
+[12:17] 
+I'm trying to write a simple end2end publish example
+
+[12:17] 
+where we train a model
+
+[12:17] 
+then publish
+
+[12:18] 
+then it's magically available on the website
+
+[12:18] 
+not sure how feature extraction fits into this
+
+jpf 
+[12:18 PM] 
+ok then you don’t need to write new features
+
+[12:18] 
+you just need to call the api
+
+scott.brown [12:18 PM] 
+yah, what do I get from that?
+
+[12:18] 
+does it populate a table?
+
+[12:18] 
+to I get a sql query?
+
+jpf 
+[12:20 PM] 
+use http://blackseabird01.icl.gtri.org:8080/queries
+
+[12:20] 
+to get the list of queries
+
+[12:20] 
+then you look at an entry like
+
+```{"bulk_condition":
+{
+"Filename": "sql/bulk_condition.sql",
+"Bindvars": ["cohort"],
+"Text": "SELECT\n
+ person_id,\n \n
+ condition_era_start_date AS start_date,\n
+ condition_era_end_date   AS end_date,\n \n
+ condition_concept_id             concept_id,\n
+ 'condition'          AS type,\n
+ 1                        AS value\n
+ FROM mimic_v5.condition_era\n\n
+ -- cohort table : results_mimic.cohort\n
+ RIGHT JOIN results_mimic.cohort on results_mimic.cohort.subject_id =
+ person_id\n
+ -- end\n\n
+ WHERE cohort_definition_id= $1 and ( cohort_end_date \u003e condition_era_start_date ) 
+ -- and not (condition_era_end_date \u003c cohort_start_date)\n
+ ORDER BY person_id, type, start_date, end_date"
+}
+```
+
+The key is the route, the Filename is the source file that contains the SQL, the bindvars are the names of the keyword arguments, and text is the text of the query
+
+
+how would I run this bulk_condition query on a different dataset?
+
+So you would then call that query with
+
+curl http://blackseabird01.icl.gtri.org:8080/bulk/bulk_condition?cohort=121
+
+jpf [12:24 PM] 
+the service is tied to the one data set at startup
+so we'd start a different service
+for a different dataset
+its tied to the connection string
+
+[12:25] 
+yeah when you run the service you pass an ENV variable with the database credentials
+
+scott.brown [12:25 PM] 
+I thought we were putting the different datasets in different postgres schemata
+
+[12:26] 
+how does that work with the connection string?
+
+so you can configure that in the queries. There is a config file that has a SCHEMA variable to generate the queries with that schema.
+
+It would be a different endpoint.

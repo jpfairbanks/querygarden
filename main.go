@@ -161,6 +161,7 @@ func main() {
 	// set up the query handler with the current Context and DB connection
 	queryhandler := func(w http.ResponseWriter, r *http.Request) {
 		// initialize a buffer for the table in HTML
+		var nrows int
 		buf := make([]byte, 0)
 		table := bytes.NewBuffer(buf)
 		tablew := bufio.NewWriter(table)
@@ -174,13 +175,23 @@ func main() {
 
 		// get the result from the DB
 		rows, err := ctx.Query(Conn, req.Key, ctx.ArrangeBindVars(req.Key, args)...)
+		defer rows.Close()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		// write the result as a table to the a bytes buffer so it can go in the template.
-		WriteTable(tablew, rows)
-		tablew.Flush()
+		nrows, err = WriteTable(tablew, rows)
+		log.Debugf("processed %d rows", nrows)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		err = tablew.Flush()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		byts, err := json.Marshal(req)
 		var respdata = map[string]interface{}{"Args": string(byts),
 			"QueryText":   ctx.Queries[req.Key].Text,
@@ -239,6 +250,8 @@ func main() {
 		req, err := featex.ParseRequest(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			log.WithFields(log.Fields{"key": key, "status": http.StatusBadRequest,
+				"error": err}).Error("failed to parse request")
 			return
 		}
 		qargs := TakeFirst(req)
@@ -265,10 +278,15 @@ func main() {
 		jobID, err = featex.BulkFeatures(Conn, qry.Text, opts, args...)
 		resp.JobID = jobID
 		resp.Err = err
+		if err != nil {
+			log.WithFields(log.Fields{"key": key, "status": 500, "err": err}).Error("could not make bulk query")
+			http.Error(w, fmt.Sprintf("Query Failed: %v", err), http.StatusInternalServerError)
+		}
 		resp.SelectStmt = fmt.Sprintf("select * from %s.%s where job_id=%d",
 			opts.Schema, opts.Table, resp.JobID)
 		js, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
+			log.WithFields(log.Fields{"key": key, "status": 500}).Error("could not marshall json response")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		n, err := w.Write(js)
@@ -281,5 +299,8 @@ func main() {
 	http.HandleFunc("/bulk/", bulkhandler)
 	addr := ":8080"
 	log.Infof("Serving on address: %s", addr)
-	http.ListenAndServe(addr, nil)
+	err = http.ListenAndServe(addr, nil)
+	if err != nil {
+		log.Fatalf("Error in serving process is dying:\n\t%s\n%q", err.Error(), err)
+	}
 }

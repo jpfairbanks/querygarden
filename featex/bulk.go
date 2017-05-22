@@ -131,6 +131,7 @@ func BulkFeatures(db *sql.DB, query string, opt BulkOptions, args ...interface{}
 	var bulkQuery string       // the query that does bulk insertions
 	var countInsertions string // a query to count that we did insertions
 	jobQuery, err = NewJob(opt)
+	var res sql.Result
 	if err != nil {
 		return
 	}
@@ -150,7 +151,19 @@ func BulkFeatures(db *sql.DB, query string, opt BulkOptions, args ...interface{}
 	log.Printf("bulkQuery: %s", bulkQuery)
 	// do the insertions
 	args = append(args, JobID)
-	_ = conn.Query(bulkQuery, args...)
+	log.Printf("query args: %v", args)
+	if conn.Err != nil {
+		err = conn.Err
+		return
+	}
+
+	res, err = conn.Conn.Exec(bulkQuery, args...)
+	if res == nil {
+		err = fmt.Errorf("Bulk Query returned nil")
+	}
+	if err != nil {
+		return
+	}
 	// count how many we did
 	count := conn.QueryInt(countInsertions, JobID)
 	err = conn.Err
@@ -158,7 +171,7 @@ func BulkFeatures(db *sql.DB, query string, opt BulkOptions, args ...interface{}
 		return
 	}
 	// check that there were insertions.
-	var c int = 1
+	var c = 1
 	if count < c {
 		err = fmt.Errorf("Insertion did not yield any values")
 		return
