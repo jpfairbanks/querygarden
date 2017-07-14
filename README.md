@@ -8,10 +8,20 @@ This project requires Go to be installed. On OS X with Homebrew you can just run
 
 Running it then should be as simple as:
 
+Dependencies are handled by glide so you will need to `go get github.com/Masterminds/glide` in order to download the dependencies and vendor them.
+
+
 ```console
-$ make
+$ make get-deps
+$ go generate
+$ make build 
 $ ./bin/featex
 ```
+
+You will need to edit the templates and configuration files before this repo
+does anything useful for you. So you should lean about the sqlgen package before
+using this package. The templates can be found in the `./templates` directory.
+The contain the queries that this service will execute.
 
 ### Testing
 

@@ -1,4 +1,5 @@
 package: github.com/jpfairbanks/featex
 import:
+- package: github.com/jpfairbanks/sqlgen
 - package: github.com/spf13/viper
 - package: github.com/Sirupsen/logrus
