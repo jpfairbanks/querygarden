@@ -158,7 +158,10 @@ func main() {
 	log.Info("Database connected")
 
 	// load the templates into a template cache panic on error.
-	var templates = template.Must(template.ParseFiles("templates/html/queries.html.tmpl", "templates/html/query.html.tmpl", "templates/html/index.html.tmpl"))
+	var templates = template.Must(template.ParseFiles("templates/html/queries.html.tmpl",
+		"templates/html/query.html.tmpl",
+		"templates/html/index.html.tmpl",
+		"templates/html/404.html.tmpl"))
 	log.WithFields(log.Fields{"Templates": templates.DefinedTemplates()}).Info("Read Templates")
 
 	// set up the query handler with the current Context and DB connection
@@ -208,6 +211,17 @@ func main() {
 		}
 	}
 	//Attach the query handler to the route and start the server on localhost.
+	//http.Handle("/", http.RedirectHandler("/index.html", http.StatusPermanentRedirect))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		data := map[string]interface{}{"": ""}
+		b := &bytes.Buffer{}
+		err := templates.ExecuteTemplate(b, "404.html.tmpl", data)
+		w.Write(b.Bytes())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		//http.Error(w, b.String(), http.StatusNotFound)
+	})
 	http.HandleFunc("/query/", queryhandler)
 	listhandler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
