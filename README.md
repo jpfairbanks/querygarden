@@ -1,4 +1,4 @@
-# featex
+# Featex
 
 Feature Extraction as a Service!
 
@@ -9,6 +9,7 @@ This project requires Go to be installed. On OS X with Homebrew you can just run
 Running it then should be as simple as:
 
 Dependencies are handled by glide so you will need to `go get github.com/Masterminds/glide` in order to download the dependencies and vendor them.
+The dependencies can also be installed manually by reading the glide file and installing them globally.
 
 
 ```console
@@ -114,10 +115,10 @@ debugging.
 The structure of these fields are:
 
 ```json
-"queryname": {
+{"queryname":{
 "Filename": "sql/queryname.sql",
 "Text": "select subject_id as person_id, cohort_start_date as start_date, cohort_end_date as end_date, cohort_definition_id as concept_id, 'cohort_id' as type, 1 as value from results_mimic.cohort\nwhere cohort_definition_id = $1\n",
-"Bindvars": ["cohort"]}
+"Bindvars": ["cohort"]}}
 ```
 - key: the name of the query.
 - Filename: is a path on the server where the query can be found.
@@ -130,38 +131,27 @@ Here is an example of the output.
 "cohortpatients": {
 "Filename": "sql/cohortpatients.sql",
 "Text": "select subject_id as person_id, cohort_start_date as start_date, cohort_end_date as end_date, cohort_definition_id as concept_id, 'cohort_id' as type, 1 as value from results_mimic.cohort\nwhere cohort_definition_id = $1\n",
-"Bindvars": [
-"cohort"
-]
-},
+"Bindvars": ["cohort"]},
+
 "condition": {
 "Filename": "sql/condition.sql",
 "Text": "SELECT\n  person_id,\n  condition_start_date AS start_date,\n  condition_end_date   AS end_date,\n  condition_concept_id    concept_id,\n  'condition'          AS type,\n  1                    AS value\nFROM mimic_v5.condition_occurrence\nWHERE person_id = $1\nORDER BY person_id, type, start_date, end_date",
-"Bindvars": [
-"person"
-]
-},
+"Bindvars": ["person"]},
+
 "demographics": {
 "Filename": "sql/demographics.sql",
 "Text": "select gender, race, age, count(*) from mimic_v5.table where\n  year <= 2016 and year >= 2000\ngroupby\n  gender, race, age\nLIMIT ?",
-"Bindvars": [
-"limit"
-]
-}
+"Bindvars": ["limit"]},
+
 "bulk_condition": {
 "Filename": "sql/bulk_condition.sql",
 "Text": "SELECT\n person_id,\n \n  condition_era_start_date AS start_date,\n  condition_era_end_date   AS end_date,\n \n condition_concept_id             concept_id,\n 'condition'          AS type,\n 1                        AS value\nFROM mimic_v5.condition_era\n\n   -- cohort table : results_mimic.cohort\n  RIGHT JOIN results_mimic.cohort on results_mimic.cohort.subject_id = person_id\n  -- end\n\nWHERE cohort_definition_id= $1 and ( cohort_end_date > condition_era_start_date ) -- and not (condition_era_end_date < cohort_start_date)\nORDER BY person_id, type, start_date, end_date",
-"Bindvars": [
-"cohort"
-]
-},
+"Bindvars": ["cohort"]},
+
 "bulk_demographics": {
 "Filename": "sql/bulk_demographics.sql",
 "Text": "\n\n-- AGE as binned by OHDSI/FeatureExtraction\nselect person_id,\n        start_date,\n        end_date,\n        0 as concept_id, \n        age as value,\n        'age' as type\n  from  (\n  SELECT\n    person_id,\n    cohort_start_date                                    AS start_date,\n    cohort_end_date                                      AS end_date,\n    date_part('year', cohort_start_date) - year_of_birth AS age\n  FROM mimic_v5.person\n    RIGHT JOIN results_mimic.cohort ON subject_id = person_id\n  WHERE cohort_definition_id = $1\n) as t\n\n\nUNION ALL\n\n-- gender\nselect person_id, cohort_start_date as start_date, cohort_end_date as end_date,\n  gender_concept_id as concept_id, 1 as value, 'gender' as type\nfrom mimic_v5.person\n  RIGHT JOIN results_mimic.cohort on subject_id=person_id WHERE cohort_definition_id = $1\n\n\n\n\nUNION ALL\n-- race\nselect person_id, cohort_start_date as start_date, cohort_end_date as end_date,\n                  race_concept_id as concept_id, 1 as value, 'race' as type\nfrom mimic_v5.person\n  RIGHT JOIN results_mimic.cohort on subject_id=person_id WHERE cohort_definition_id = $1\n\n\n\n\n",
-"Bindvars": [
-"cohort"
-]
-},
+"Bindvars": ["cohort"]}
 }
 ```
 
