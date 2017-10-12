@@ -29,6 +29,9 @@ var ResponseLimit = 500
 // The rows object is left open so that you can get the data out of it
 // if you want to do that.
 func RowMap(f func(rows *sql.Rows) (bool, error), rows *sql.Rows) error {
+	if rows == nil {
+		return fmt.Errorf("Rows argument is nil")
+	}
 	var i int
 	i = 0
 	for rows.Next() {
@@ -175,11 +178,11 @@ func main() {
 
 		// get the result from the DB
 		rows, err := ctx.Query(Conn, req.Key, ctx.ArrangeBindVars(req.Key, args)...)
-		defer rows.Close()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		defer rows.Close()
 		// write the result as a table to the a bytes buffer so it can go in the template.
 		nrows, err = WriteTable(tablew, rows)
 		log.Debugf("processed %d rows", nrows)
