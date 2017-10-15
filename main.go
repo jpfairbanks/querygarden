@@ -112,6 +112,15 @@ func TakeFirst(req featex.Request) map[string]string {
 	}
 	return args
 }
+
+func fivehundred(w http.ResponseWriter, err error) {
+	//s := fmt.Sprintf("<html><head></head>" +
+	//	"<body><div class=\"container\"><h1>Internal Server Error</h1><p>%s</p></div>" +
+	//		"</body></html>", err.Error())
+	s := fmt.Sprintf("<div class=\"container\"><h1>Internal Server Error</h1><p>%s</p></div>", err.Error())
+	http.Error(w, s, http.StatusInternalServerError)
+}
+
 func main() {
 	// Set up command line flag.
 	err := featex.Config()
@@ -182,7 +191,7 @@ func main() {
 		// get the result from the DB
 		rows, err := ctx.Query(Conn, req.Key, ctx.ArrangeBindVars(req.Key, args)...)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fivehundred(w, err)
 			return
 		}
 		defer rows.Close()
@@ -190,12 +199,12 @@ func main() {
 		nrows, err = WriteTable(tablew, rows)
 		log.Debugf("processed %d rows", nrows)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fivehundred(w, err)
 			return
 		}
 		err = tablew.Flush()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fivehundred(w, err)
 			return
 		}
 		byts, err := json.Marshal(req)
@@ -207,7 +216,7 @@ func main() {
 		err = templates.ExecuteTemplate(w, "query.html.tmpl", respdata)
 		if err != nil {
 			err = fmt.Errorf("Could not render template: %s", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fivehundred(w, err)
 		}
 	}
 	//Attach the query handler to the route and start the server on localhost.
@@ -218,7 +227,7 @@ func main() {
 		err := templates.ExecuteTemplate(b, "404.html.tmpl", data)
 		w.Write(b.Bytes())
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fivehundred(w, err)
 		}
 		//http.Error(w, b.String(), http.StatusNotFound)
 	})
