@@ -32,16 +32,18 @@ type Query struct {
 // ArrangeBindVars takes a map containing values you want to bind into the parameters of the query
 // and arranges them in the order necessary for the sqldriver to process them. Uses default values of the go type
 // if no value is found for any key.
-func (q Query) ArrangeBindVars(values map[string]string) []interface{} {
+func (q Query) ArrangeBindVars(values map[string]string) ([]interface{}, error) {
 	args := make([]interface{}, len(q.Bindvars))
 	for i, bv := range q.Bindvars {
 		val, ok := values[bv]
 		if !ok {
 			log.Warnf("Missing Var: pos=%d varname=%s ", i, bv)
+			err := QError{bv, fmt.Sprintf("Missing Var: pos=%d, varname=%s", i, bv)}
+			return args, err
 		}
 		args[i] = val
 	}
-	return args
+	return args, nil
 }
 
 // A Context holds all the queries in a map keyed by their names
@@ -125,12 +127,13 @@ func QueryInt(conn *sql.DB, query string, args ...interface{}) (int, error) {
 }
 
 // ArrangeBindVars looks up a query by key and then apply Query.ArrangeBindVars to that query.
-func (ctx *Context) ArrangeBindVars(key string, values map[string]string) []interface{} {
+func (ctx *Context) ArrangeBindVars(key string, values map[string]string) ([]interface{}, error) {
 	var args []interface{}
+	var err error
 	q, ok := ctx.Queries[key]
 	if !ok {
-		return args
+		return args, fmt.Errorf("Could not locate query: %s", key)
 	}
-	args = q.ArrangeBindVars(values)
-	return args
+	args, err = q.ArrangeBindVars(values)
+	return args, err
 }

@@ -113,12 +113,26 @@ func TakeFirst(req featex.Request) map[string]string {
 	return args
 }
 
+func htmlerrorpage(w http.ResponseWriter, err error, code int) {
+	log.Debug("Writing an error message as html")
+	w.WriteHeader(code)
+	tstring := `{{ .HeadElt }} <body><div class="container">
+	<h1>{{ .StatusText }}</h1>
+		<p><pre>{{ .Msg }}</pre></p>
+	</div></body>`
+	t, rerr := template.New("fivehundred").Parse(tstring)
+	if rerr != nil {
+		log.Error(rerr)
+	}
+	d := map[string]interface{}{"HeadElt":headelt, "StatusText": http.StatusText(code), "Msg":err.Error()}
+	rerr = t.Execute(w, d)
+	if rerr != nil {
+		log.Error(rerr)
+	}
+}
+
 func fivehundred(w http.ResponseWriter, err error) {
-	//s := fmt.Sprintf("<html><head></head>" +
-	//	"<body><div class=\"container\"><h1>Internal Server Error</h1><p>%s</p></div>" +
-	//		"</body></html>", err.Error())
-	s := fmt.Sprintf("<div class=\"container\"><h1>Internal Server Error</h1><p>%s</p></div>", err.Error())
-	http.Error(w, s, http.StatusInternalServerError)
+	htmlerrorpage(w, err, http.StatusInternalServerError)
 }
 
 func main() {
@@ -184,12 +198,18 @@ func main() {
 		// parse the request from the client
 		req, err := featex.ParseRequest(r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			htmlerrorpage(w, err, http.StatusBadRequest)
+			return
 		}
 		args := TakeFirst(req)
 
 		// get the result from the DB
-		rows, err := ctx.Query(Conn, req.Key, ctx.ArrangeBindVars(req.Key, args)...)
+		params, err := ctx.ArrangeBindVars(req.Key, args)
+		if err != nil {
+			htmlerrorpage(w, err, http.StatusBadRequest)
+			return
+		}
+		rows, err := ctx.Query(Conn, req.Key, params...)
 		if err != nil {
 			fivehundred(w, err)
 			return
@@ -204,7 +224,7 @@ func main() {
 		}
 		err = tablew.Flush()
 		if err != nil {
-			fivehundred(w, err)
+			//fivehundred(w, err)
 			return
 		}
 		byts, err := json.Marshal(req)
@@ -237,7 +257,7 @@ func main() {
 		err := json.NewEncoder(w).Encode(ctx.Queries)
 		//resp, err := json.Marshal(ctx.Queries)
 		if err != nil {
-			http.Error(w, "Could not marshall ctx.Queries into JSON", http.StatusInternalServerError)
+			fivehundred(w, fmt.Errorf("Could not marshall ctx.Queries into JSON"))
 		}
 
 	}
@@ -246,7 +266,7 @@ func main() {
 		data := map[string]interface{}{"": ""}
 		err := templates.ExecuteTemplate(w, "index.html.tmpl", data)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fivehundred(w, err)
 		}
 	})
 
@@ -259,7 +279,7 @@ func main() {
 		key := parts[2]
 		qry, ok := ctx.Queries[key]
 		if !ok {
-			http.Error(w, "Could not find key="+key, http.StatusBadRequest)
+			htmlerrorpage(w, fmt.Errorf("Could not find key=%s",key), http.StatusBadRequest)
 			log.Debugf("Available Keys are: %v")
 			for k := range ctx.Queries {
 				log.Debugf("\t%s", k)
@@ -275,7 +295,7 @@ func main() {
 		// getting the query arguments
 		req, err := featex.ParseRequest(r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			htmlerrorpage(w, err, http.StatusBadRequest)
 			log.WithFields(log.Fields{"key": key, "status": http.StatusBadRequest,
 				"error": err}).Error("failed to parse request")
 			return
@@ -299,25 +319,30 @@ func main() {
 
 		log.Debug("calling BulkFeatures")
 		var jobID int
-		args := ctx.ArrangeBindVars(key, qargs)
-		log.WithFields(log.Fields{"key": key, "args": args}).Info("bulk query arguments:")
+		//args := ctx.ArrangeBindVars(key, qargs)
+		args, err := ctx.ArrangeBindVars(req.Key, qargs)
+		if err != nil {
+			htmlerrorpage(w, err, http.StatusBadRequest)
+			return
+		}
+		log.WithFields(log.Fields{"key": key, "args": args}).Info("Bulk query arguments:")
 		jobID, err = featex.BulkFeatures(Conn, qry.Text, opts, args...)
 		resp.JobID = jobID
 		resp.Err = err
 		if err != nil {
-			log.WithFields(log.Fields{"key": key, "status": 500, "err": err}).Error("could not make bulk query")
-			http.Error(w, fmt.Sprintf("Query Failed: %v", err), http.StatusInternalServerError)
+			log.WithFields(log.Fields{"key": key, "status": 500, "err": err}).Error("Could not make bulk query")
+			fivehundred(w, fmt.Errorf("Query Failed: %v", err))
 		}
 		resp.SelectStmt = fmt.Sprintf("select * from %s.%s where job_id=%d",
 			opts.Schema, opts.Table, resp.JobID)
 		js, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
-			log.WithFields(log.Fields{"key": key, "status": 500}).Error("could not marshall json response")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.WithFields(log.Fields{"key": key, "status": 500}).Error("Could not marshall json response")
+			fivehundred(w, err)
 		}
 		n, err := w.Write(js)
 		if err != nil {
-			log.WithFields(log.Fields{"key": key, "error": err, "bytes": n}).Error("failed to write response")
+			log.WithFields(log.Fields{"key": key, "error": err, "bytes": n}).Error("Failed to write response")
 			return
 		}
 
