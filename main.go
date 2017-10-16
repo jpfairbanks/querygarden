@@ -22,7 +22,7 @@ import (
 // ResponseLimit is the maximum number of values to pass as an HTML table
 var ResponseLimit = 500
 
-//go:generate sqlgen
+//go:generate querygen
 
 // RowMap takes a DB result Rows and maps a function over each row.
 // This function handles the errors by logging and breaking out of the loop.

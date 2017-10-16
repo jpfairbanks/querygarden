@@ -1,0 +1,5 @@
+select gender, race, age, count(*) from {{.schema}}.{{.table}} where
+  {{.cond}}
+groupby
+  gender, race, age
+{{.limit}}
