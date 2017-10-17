@@ -81,7 +81,7 @@ Then you run the script. Each template will be rendered into the file specified 
 
 Based on the example above, the output would be 
 
-```postgresql
+```SQL
 select gender, race, age, count(*) from SCHEMA.table where
   year <= 2016 and year >= 2000
 group by
