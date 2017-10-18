@@ -19,4 +19,8 @@ For more details click [here](/querygarden/ohdsi.html).
 
 Screenshots
 -----------
+QueryGarden can be used to build dynamic web applications that use SQL to provde analytics information that goes beyong ORM or SQL parameterization.
 ![Screenshot](featex_screenshot.png)
+
+The Queries are generated using the querygen module which builds on YAML and Go text templates (similar to mustaches) for a standardized easy to use and extend system for generating queries.
+![Config Screenshot](featex_config_screenshot.png)
