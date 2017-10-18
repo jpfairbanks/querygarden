@@ -320,7 +320,7 @@ func main() {
 		log.Debug("calling BulkFeatures")
 		var jobID int
 		//args := ctx.ArrangeBindVars(key, qargs)
-		args, err := ctx.ArrangeBindVars(req.Key, qargs)
+		args, err := ctx.ArrangeBindVars(key, qargs)
 		if err != nil {
 			htmlerrorpage(w, err, http.StatusBadRequest)
 			return
