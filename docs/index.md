@@ -15,4 +15,4 @@ is a place to plant queries for analytics that grow into stable, secure,
 and user friendly applications.
 
 This software has been presented at the OHDSI Symposium as research software.
-For more details click [ohdsi.html](here).
+For more details click [here](/ohdsi.html).
