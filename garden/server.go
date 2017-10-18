@@ -1,4 +1,4 @@
-package featex
+package garden
 
 import (
 	"net/http"

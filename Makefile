@@ -2,7 +2,7 @@
 
 BIN_NAME=featex
 
-VERSION := $(shell grep "const Version " version.go | sed -E 's/.*"(.+)"$$/\1/')
+VERSION := $(shell grep "const Version " featex/version.go | sed -E 's/.*"(.+)"$$/\1/')
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 IMAGE_NAME := "jpfa/featex"
@@ -30,7 +30,8 @@ generate:
 build:
 	@echo "building ${BIN_NAME} ${VERSION}"
 	@echo "GOPATH=${GOPATH}"
-	go build -ldflags "-X main.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X main.VersionPrerelease=DEV" -o bin/${BIN_NAME}
+	@cd featex
+	cd featex && go build -ldflags "-X main.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X main.VersionPrerelease=DEV" -o bin/${BIN_NAME}
 
 get-deps:
 	glide install

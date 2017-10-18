@@ -12,8 +12,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/jpfairbanks/featex/featex"
-	"github.com/jpfairbanks/featex/log"
+	"github.com/jpfairbanks/querygarden/garden"
+	"github.com/jpfairbanks/querygarden/log"
 	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 	"strings"
@@ -22,7 +22,7 @@ import (
 // ResponseLimit is the maximum number of values to pass as an HTML table
 var ResponseLimit = 500
 
-//go:generate sqlgen
+//go:generate querygen
 
 // RowMap takes a DB result Rows and maps a function over each row.
 // This function handles the errors by logging and breaking out of the loop.
@@ -68,7 +68,7 @@ func WriteString(w io.Writer, s string) (int, error) {
 // returns the number of rows successfully writen
 func WriteTable(tablew io.Writer, rows *sql.Rows) (int, error) {
 	var i = 0
-	var row featex.Feature
+	var row garden.Feature
 	var value int
 	err := RowMap(func(r *sql.Rows) (bool, error) {
 		i++
@@ -105,7 +105,7 @@ var headelt = template.HTML(`<head>
 var tableheader = template.HTML(`<table class="table table-stripped"><tr>Person, Start Date, End Date, ConceptID, Feature Type</tr>`)
 
 //TakeFirst takes only the first argument for each key in the map.
-func TakeFirst(req featex.Request) map[string]string {
+func TakeFirst(req garden.Request) map[string]string {
 	args := make(map[string]string)
 	for k, v := range req.Args {
 		args[k] = v[0]
@@ -137,7 +137,7 @@ func fivehundred(w http.ResponseWriter, err error) {
 
 func main() {
 	// Set up command line flag.
-	err := featex.Config()
+	err := garden.Config()
 	resultsSchema := viper.GetString("global.rschema")
 	log.Infof("resultsSchema=%s", resultsSchema)
 	if err != nil {
@@ -155,7 +155,7 @@ func main() {
 	}
 
 	// prepare the query map which holds the queries as strings
-	ctx := featex.Context{Querypath: "./sql", Queries: make(map[string]featex.Query)}
+	ctx := garden.Context{Querypath: "./sql", Queries: make(map[string]garden.Query)}
 	log.Info("Loading queries")
 	// keys := []string{"demographics", "demographics_historical", "features", "condition", "drugs", "drug_era", "milenial_features"}
 
@@ -174,7 +174,7 @@ func main() {
 
 	//prepare the database
 	var Conn *sql.DB
-	Conn, err = sql.Open("postgres", featex.DBString())
+	Conn, err = sql.Open("postgres", garden.DBString())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -196,7 +196,7 @@ func main() {
 		tablew := bufio.NewWriter(table)
 
 		// parse the request from the client
-		req, err := featex.ParseRequest(r)
+		req, err := garden.ParseRequest(r)
 		if err != nil {
 			htmlerrorpage(w, err, http.StatusBadRequest)
 			return
@@ -272,7 +272,7 @@ func main() {
 
 	bulkhandler := func(w http.ResponseWriter, r *http.Request) {
 		//var err error
-		var resp *featex.BulkResponse = new(featex.BulkResponse)
+		var resp *garden.BulkResponse = new(garden.BulkResponse)
 		w.Header().Set("Content-Type", "application/json")
 		route := r.URL.Path
 		parts := strings.Split(route, "/")
@@ -293,7 +293,7 @@ func main() {
 			"query": qry}).Debug("Loaded Query for Bulk")
 
 		// getting the query arguments
-		req, err := featex.ParseRequest(r)
+		req, err := garden.ParseRequest(r)
 		if err != nil {
 			htmlerrorpage(w, err, http.StatusBadRequest)
 			log.WithFields(log.Fields{"key": key, "status": http.StatusBadRequest,
@@ -304,14 +304,14 @@ func main() {
 
 		log.WithFields(log.Fields{"key": key, "qargs": qargs}).Debug("parsed query arguments")
 
-		opts := featex.BulkOptions{Schema: resultsSchema,
+		opts := garden.BulkOptions{Schema: resultsSchema,
 			Table:       "features",
 			JobTable:    "feature_jobs",
 			Positional:  len(qry.Bindvars) + 1,
 			Description: "api query key=" + key,
 			Selectstmt:  qry.Text}
 		resp.BulkOptions = opts
-		// q, err := featex.RenderTemplate(featex.BulkTemps.Insert, opts)
+		// q, err := garden.RenderTemplate(garden.BulkTemps.Insert, opts)
 		// if err != nil {
 		// 	http.Error(w, err.Error(), http.StatusInternalServerError)
 		// }
@@ -326,7 +326,7 @@ func main() {
 			return
 		}
 		log.WithFields(log.Fields{"key": key, "args": args}).Info("Bulk query arguments:")
-		jobID, err = featex.BulkFeatures(Conn, qry.Text, opts, args...)
+		jobID, err = garden.BulkFeatures(Conn, qry.Text, opts, args...)
 		resp.JobID = jobID
 		resp.Err = err
 		if err != nil {

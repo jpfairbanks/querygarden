@@ -1,0 +1,5 @@
+select gender, race, age, count(*) from {{.Table}} where
+  {{.Cond}}
+groupby
+  gender, race, age
+{{.Limit}}

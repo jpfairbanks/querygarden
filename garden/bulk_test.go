@@ -1,10 +1,10 @@
-package featex
+package garden
 
 import (
 	"database/sql"
 	"fmt"
 	"log"
-	// "github.com/jpfairbanks/featex"
+	// "github.com/jpfairbanks/garden"
 	_ "github.com/lib/pq"
 	"testing"
 )

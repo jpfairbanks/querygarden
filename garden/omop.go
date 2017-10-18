@@ -2,7 +2,7 @@
 // OMOP is a specific database common data model that is used in the medical domain
 // the feature extraction package is not domain specific, but there
 // is some data that only applies to the OMOP CDM and that content goes here.
-package featex
+package garden
 
 var omopqueries map[string]string = make(map[string]string)
 
