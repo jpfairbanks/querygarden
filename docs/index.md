@@ -1,7 +1,7 @@
 QueryGarden
 ===========
 
-Growing healthy applications in well-preppared SQL.
+Growing healthy applications in well-prepared SQL.
 
 Many software packages within the OHDSI ecosystem rely on SQL query
 generation, which is fraught with security risks and compatibility
