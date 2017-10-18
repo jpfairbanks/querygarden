@@ -24,6 +24,7 @@ building featex 0.1.0
 GOPATH=/Users/jfairbanks6/golang/
 cd featex && go build -ldflags "-X main.GitCommit=be2e20c0b4b4dc9650cf0c0b84d036e8d13c5285+CHANGES -X main.VersionPrerelease=DEV" -o bin/featex
 
+$ export DBSTRING="postgres://username:password@uomop.db.domain:5432/postgres?sslmode=disable"
 $ cd featex && ./bin/featex
 INFO[0000] resultsSchema=results_mimic
 INFO[0000] Loading queries
@@ -35,3 +36,5 @@ INFO[0000] Serving on address: :8080
 ```
 
 See [featex/README.md]() for more details about the featex application.
+
+If you have any questions please open an issue! I am happy to help you get set up running this project.
