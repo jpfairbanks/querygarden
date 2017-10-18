@@ -7,3 +7,6 @@ go:
 install:
   - go get -v github.com/Masterminds/glide 
   - make get-deps
+
+env:
+   - DBSTRING=$(curl http://api.postgression.com)
