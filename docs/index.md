@@ -17,4 +17,6 @@ and user friendly applications.
 This software has been presented at the OHDSI Symposium as research software.
 For more details click [here](/querygarden/ohdsi.html).
 
-
+Screenshots
+-----------
+![Screenshot](featex_screenshot.png)
