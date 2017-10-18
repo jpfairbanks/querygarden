@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/jpfairbanks/featex/config"
+	"github.com/jpfairbanks/querygarden/config"
 )
 
 // Logger defines a set of methods for writing application logs. Derived from and

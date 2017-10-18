@@ -12,8 +12,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/jpfairbanks/featex/garden"
-	"github.com/jpfairbanks/featex/log"
+	"github.com/jpfairbanks/querygarden/garden"
+	"github.com/jpfairbanks/querygarden/log"
 	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 	"strings"

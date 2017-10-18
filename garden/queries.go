@@ -7,7 +7,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/jpfairbanks/featex/log"
+	"github.com/jpfairbanks/querygarden/log"
 	"github.com/spf13/viper"
 )
 

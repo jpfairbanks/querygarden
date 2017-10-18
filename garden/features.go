@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/jpfairbanks/featex/log"
+	"github.com/jpfairbanks/querygarden/log"
 )
 
 // A Feature is a struct that represents the result of running a feature extraction query.
