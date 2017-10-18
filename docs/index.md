@@ -1,7 +1,7 @@
 QueryGarden
 ===========
 
-Growing healythy applications in fertile SQL.
+Growing healthy applications in fertile SQL.
 
 
 Many software packages within the OHDSI ecosystem rely on SQL query
