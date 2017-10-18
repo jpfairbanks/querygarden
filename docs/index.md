@@ -22,7 +22,10 @@ Screenshots
 QueryGarden can be used to build dynamic web applications that use SQL to provde analytics information that goes beyong ORM or SQL parameterization.
 ![Screenshot](featex_screenshot.png)
 
+### querygen for flexible query generation
 The Queries are generated using the querygen module which builds on YAML and Go text templates (similar to mustaches) for a standardized easy to use and extend system for generating queries.
 ![Config Screenshot](featex_config_screenshot.png)
+
+### managing collections of queries
 Once loaded by the FeatEx web applications, the queries and their parameters can be inspected programatically, a feature that can be used by front end applications to build advanced user interfaces.
 ![Query Screenshot](queries_json.png)
