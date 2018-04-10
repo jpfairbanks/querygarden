@@ -1,6 +1,67 @@
+{{ define "tablestyle" }}
+<style>
+table {
+    border: 2px solid black;
+    <!-- border-top: 2px solid black; -->
+}
+
+th, td {
+    padding: 10px;
+}
+
+tr {
+  border-bottom: 2px solid black;
+}
+</style>
+{{ end }}
+
+{{ define "listitems" }}
+  <ol>
+    {{ range $idx, $item := . }}
+      <li> {{ $item }} </li>
+    {{ end }}
+  </ol>
+{{ end }}
+
+{{ define "kwargs" }}
+{{ range $idx, $val := .Bindvars }}
+{{ $val }}=0&
+{{ end }}
+{{ end }}
+
+{{ define "qitem" }}
+  <td> {{ template "listitems" .Bindvars }} </td>
+<td> 
+<!-- <p> -->
+<!--   <a class="btn btn-primary" data-toggle="collapse" href="#collapse-{{- .Filename | urlquery -}}" role="button" aria-expanded="true" aria-controls="collapse{{- .Filename -}}"> -->
+<!--     Link with href -->
+<!--   </a> -->
+<!-- </p> -->
+<!-- <div class="collapse" id="collapse-{{- .Filename | urlquery -}}"> -->
+  <!-- <div class="card card-body"> -->
+  <pre><code class=sql>
+    {{- .Text -}}
+    </code></pre>
+  <!-- </div> -->
+<!-- </div> -->
+</td>
+{{ end }}
+
+{{ template "headelt" }}
+{{ template "tablestyle" }}
 <div class="container">
-<h1>List of Queries</h1>
-<p>
-{{ .Queries }}
-</p>
+{{ template "title" }}
+<div class="container">
+<h2>Available Queries</h2>
+<p>The following queries are available to execute, you can click on the Name link to execute it.</p>
+<!-- <div class="well"> -->
+  <table>
+    <tr><th>Name</th><th>Arguments</th><th>Query</th></tr>
+{{ range $index, $query :=  .Queries }}
+    <tr style="border-bottom:1px solid black" class="table-light"> <td><a href="/query/{{- $index -}}?{{- template "kwargs" $query -}}"> {{ $query.Filename }} </a> </td>
+      {{ template "qitem" $query }}
+</tr>
+{{ end }}
+</table>
+<!-- </div> -->
 </div>

@@ -1,21 +1,98 @@
-<head>
-<link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/flatly/bootstrap.min.css" rel="stylesheet" integrity="sha384-+ENW/yibaokMnme+vBLnHMphUYxHs34h9lpdbSLuAwGkOKFRl4C34WkjazBtb7eT" crossorigin="anonymous">
-<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/styles/default.min.css">
-<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/highlight.min.js"></script>
-<script>hljs.initHighlightingOnLoad();</script>
-</head>
+{{ define "Tableheader" }}
 
-<div class="container">
-<h1>FeatEx</h1>
-<h2>Ran Query</h2>
-<p><pre><code class=json>
-{{ .Args }}
-</code></pre></p>
+<div class="table-responsive"><table class="table table-stripped">
+    <tr class="table-primary"> {{ range $index, $colname := .Headrow }}
+      <td> {{ $colname }} </td>
+      {{ end }}
+    </tr>
 
-<h2>Query.Text</h2><pre><code class=sql>
-{{ .QueryText }}
-</code></pre>
-<h2>Result</h2><p>
-{{ .Tableheader }}
-{{ .Table }}
+    {{ end }}
+
+    {{ define "ParamTable" }}
+      <table style="border: 1px; padding: 10px">
+        <tr class="table-primary"><th>Name</th><th> Value</th></tr>
+        {{ range $idx, $val := .Args.Args }}
+        <tr style="border-bottom:0px solid black" class="table-light"><td>{{ $idx -}}</td><td>{{ $val }}</td></tr>
+        {{ end }}
+      </table>
+    {{ end }}
+
+      {{ define "FormStyle" }}
+      <style>
+        legend {
+          font-size: 12pt;
+          font-weight: bold;
+        }
+      </style>
+      {{ end }}
+
+{{ define "ParamForm" }}
+    <div class="container">
+<form method="GET" action="/query/{{- .Args.Key -}}">
+  <fieldset>
+    <legend>Name: Value</legend>
+    {{ $args := .Args.Args }}
+    <ol>
+  {{ range $idx, $varname := .Bindvars }}
+    {{ $defaultval := index $args $varname 0 }}
+  <div class="form-group row">
+    <li>
+      <label> {{ $varname }}: </label>
+      <input type="text" name="{{- $varname -}}" value="{{- $defaultval -}}">
+     </li>
+  </div>
+  {{ end }}
+  </ol>
+
+  <div class="form-group row">
+	<input type="submit" value="Execute">
+  </fieldset>
+  </div>
+</form>
+</div>
+{{ end }}
+
+    {{ template "headelt" }}
+    {{ template "FormStyle" }}
+    
+
+    <div class="container">
+      {{ template "title" }}
+      <h2>Executed Query</h2>
+      <p>
+        The executed query is <strong>"{{ .Args.Key }}"</strong>. the query parameters determine the value of the placeholder variables. The query text is show below along with a table of the results. The parameters are substituted into the query where $1 is the first variable $2 the second etc.</p>
+      <div class="row justify-content-center">
+        <div class="col-md justify-content-center">
+          <div class="card border-primary mb-3" style="max-width: 50rem;">
+  <div class="card-header">Query</div>
+  <div class="card-body">
+    <p>
+          <pre><code class=sql>
+              {{- .QueryText -}}
+          </code></pre>
+    </p>
+  </div>
+      </div>
+      </div>
+      <div class="col-md justify-content-center">
+          <div class="card border-primary mb-3" style="max-width: 20rem;">
+  <div class="card-header">Parameters</div>
+  <div class="card-body">
+    <p class="card-text">
+      
+
+  {{ template "ParamForm" . }}
+    </p>
+  </div>
+</div>
+</div>
+
+          <div class="card border-primary mb-3" style="max-width: 80rem;">
+  <div class="card-header">Results</div>
+  <div class="card-body">
+    </p>
+      <p>
+        {{ template "Tableheader" . }}
+        {{ .Table }}
 </table></p></div>
+</div>

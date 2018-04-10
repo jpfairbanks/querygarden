@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"os"
 
 	"github.com/jpfairbanks/querygarden/garden"
 	"github.com/jpfairbanks/querygarden/log"
@@ -21,6 +22,9 @@ import (
 
 // ResponseLimit is the maximum number of values to pass as an HTML table
 var ResponseLimit = 500
+
+// Global variable of templates so that all functions can share the same templates
+var templates *template.Template
 
 //go:generate querygen
 
@@ -66,43 +70,44 @@ func WriteString(w io.Writer, s string) (int, error) {
 // Otherwise, the table tags will be escaped and break your page.
 // Make sure to flush the buffer before constructing the template.HTML object.
 // returns the number of rows successfully writen
-func WriteTable(tablew io.Writer, rows *sql.Rows) (int, error) {
+func WriteTable(tablew io.Writer, rows *sql.Rows) (int, []string, error) {
 	var i = 0
-	var row garden.Feature
-	var value int
-	err := RowMap(func(r *sql.Rows) (bool, error) {
+	// var value int
+	columns, err := rows.Columns()
+	if err != nil {
+		return i, columns, err
+	}
+	dest := make([]interface{}, len(columns))
+	brow := make([][]byte, len(columns))
+	for i, _ := range brow {
+		dest[i] = &brow[i]
+	}
+	err = RowMap(func(r *sql.Rows) (bool, error) {
 		i++
 		if i > ResponseLimit {
 			// false means to terminate
 			return false, nil
 		}
 		// get the value out of the db cursor
-		if err := rows.Scan(&row.PersonID, &row.StartDate, &row.EndDate, &row.ConceptID, &row.ConceptType, &value); err != nil {
+		if err = rows.Scan(dest...); err != nil {
 			log.Error(err)
 			return false, err
 		}
 		// write one row to the output stream
-		fmt.Fprintf(tablew, "<tr><td>%d</td> <td>%s</td> <td> %s</td> <td> %d</td> <td> %s</td></tr>\n",
-			row.PersonID.Int64, row.StartDate.String,
-			row.EndDate.String, row.ConceptID.Int64, row.ConceptType)
+		fmt.Fprintf(tablew, "<tr>")
+		for _, r := range brow {
+			fmt.Fprintf(tablew, "<td>%s</td>", bytes.Trim(r, "\n"))
+		}
+		fmt.Fprintf(tablew, "</tr>")
 		// true means continue
 		return true, nil
 
 	}, rows)
 	if err != nil {
-		return i, err
+		return i, columns, err
 	}
-	return i, nil
+	return i, columns, nil
 }
-
-var headelt = template.HTML(`<head>
-<link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/flatly/bootstrap.min.css" rel="stylesheet" integrity="sha384-+ENW/yibaokMnme+vBLnHMphUYxHs34h9lpdbSLuAwGkOKFRl4C34WkjazBtb7eT" crossorigin="anonymous">
-<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/styles/default.min.css">
-<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/highlight.min.js"></script>
-<script>hljs.initHighlightingOnLoad();</script>
-</head>`)
-
-var tableheader = template.HTML(`<table class="table table-stripped"><tr>Person, Start Date, End Date, ConceptID, Feature Type</tr>`)
 
 //TakeFirst takes only the first argument for each key in the map.
 func TakeFirst(req garden.Request) map[string]string {
@@ -115,19 +120,12 @@ func TakeFirst(req garden.Request) map[string]string {
 
 func htmlerrorpage(w http.ResponseWriter, err error, code int) {
 	log.Debug("Writing an error message as html")
+	log.Debug(err.Error())
 	w.WriteHeader(code)
-	tstring := `{{ .HeadElt }} <body><div class="container">
-	<h1>{{ .StatusText }}</h1>
-		<p><pre>{{ .Msg }}</pre></p>
-	</div></body>`
-	t, rerr := template.New("fivehundred").Parse(tstring)
-	if rerr != nil {
-		log.Error(rerr)
-	}
-	d := map[string]interface{}{"HeadElt":headelt, "StatusText": http.StatusText(code), "Msg":err.Error()}
-	rerr = t.Execute(w, d)
-	if rerr != nil {
-		log.Error(rerr)
+	d := map[string]interface{}{"StatusText": http.StatusText(code), "Msg": err.Error()}
+	err = templates.ExecuteTemplate(w, "500.html.tmpl", d)
+	if err != nil {
+		log.Error(err)
 	}
 }
 
@@ -135,9 +133,44 @@ func fivehundred(w http.ResponseWriter, err error) {
 	htmlerrorpage(w, err, http.StatusInternalServerError)
 }
 
+func LoadTemplates() {
+	// load the templates into a template cache panic on error.
+	templates = template.Must(template.ParseFiles("templates/html/queries.html.tmpl",
+		"templates/html/query.html.tmpl",
+		"templates/html/index.html.tmpl",
+		"templates/html/404.html.tmpl",
+		"templates/html/500.html.tmpl",
+		"templates/html/login.html.tmpl",
+		"templates/html/reload.html.tmpl",
+	))
+	log.WithFields(log.Fields{"Templates": templates.DefinedTemplates()}).Info("Read Templates")
+}
+
+// LoadQueries: prepare the global query map which holds the queries as strings
+func LoadQueries(ctx garden.Context, configkey string) (keys []string, err error) {
+	log.Info("Loading queries")
+
+	featuresconf := viper.GetStringMap("features")
+	keys = make([]string, len(featuresconf))
+	i := 0
+	for k := range featuresconf {
+		keys[i] = k
+		i++
+	}
+	log.Infof("The keys are: %v", keys)
+	err = ctx.LoadQueries(keys)
+	return
+}
+
+func ForceLogin(w http.ResponseWriter, r *http.Request) {
+	if !IsLoggedIn(r) {
+		http.Redirect(w, r, "/login", 302)
+	}
+}
+
 func main() {
 	// Set up command line flag.
-	err := garden.Config()
+	err := garden.Config("featex")
 	resultsSchema := viper.GetString("global.rschema")
 	log.Infof("resultsSchema=%s", resultsSchema)
 	if err != nil {
@@ -156,39 +189,25 @@ func main() {
 
 	// prepare the query map which holds the queries as strings
 	ctx := garden.Context{Querypath: "./sql", Queries: make(map[string]garden.Query)}
-	log.Info("Loading queries")
-	// keys := []string{"demographics", "demographics_historical", "features", "condition", "drugs", "drug_era", "milenial_features"}
+	_, err = LoadQueries(ctx, "features")
 
-	featuresconf := viper.GetStringMap("features")
-	keys := make([]string, len(featuresconf))
-	i := 0
-	for k := range featuresconf {
-		keys[i] = k
-		i++
-	}
-	log.Infof("The keys are: %v", keys)
-	err = ctx.LoadQueries(keys)
 	if err != nil {
 		log.Fatal("Cannot load queries: ABORT!")
 	}
-
 	//prepare the database
 	var Conn *sql.DB
 	Conn, err = sql.Open("postgres", garden.DBString())
+	log.Debug(garden.DBString())
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Info("Database connected")
 
-	// load the templates into a template cache panic on error.
-	var templates = template.Must(template.ParseFiles("templates/html/queries.html.tmpl",
-		"templates/html/query.html.tmpl",
-		"templates/html/index.html.tmpl",
-		"templates/html/404.html.tmpl"))
-	log.WithFields(log.Fields{"Templates": templates.DefinedTemplates()}).Info("Read Templates")
+	LoadTemplates()
 
 	// set up the query handler with the current Context and DB connection
 	queryhandler := func(w http.ResponseWriter, r *http.Request) {
+		ForceLogin(w, r)
 		// initialize a buffer for the table in HTML
 		var nrows int
 		buf := make([]byte, 0)
@@ -216,7 +235,8 @@ func main() {
 		}
 		defer rows.Close()
 		// write the result as a table to the a bytes buffer so it can go in the template.
-		nrows, err = WriteTable(tablew, rows)
+		var headrow []string
+		nrows, headrow, err = WriteTable(tablew, rows)
 		log.Debugf("processed %d rows", nrows)
 		if err != nil {
 			fivehundred(w, err)
@@ -228,10 +248,12 @@ func main() {
 			return
 		}
 		byts, err := json.Marshal(req)
-		var respdata = map[string]interface{}{"Args": string(byts),
-			"QueryText":   ctx.Queries[req.Key].Text,
-			"Tableheader": tableheader,
-			"Table":       template.HTML(table.Bytes())}
+		log.Debugf("%s", byts)
+		var respdata = map[string]interface{}{"Args": req,
+			"QueryText": ctx.Queries[req.Key].Text,
+			"Table":     template.HTML(table.Bytes()),
+			"Headrow":   headrow,
+			"Bindvars":  ctx.Queries[req.Key].Bindvars}
 		// render the page to the client
 		err = templates.ExecuteTemplate(w, "query.html.tmpl", respdata)
 		if err != nil {
@@ -261,7 +283,15 @@ func main() {
 		}
 
 	}
-	http.HandleFunc("/queries", listhandler)
+	listhandlerhtml := func(w http.ResponseWriter, r *http.Request) {
+		err := templates.ExecuteTemplate(w, "queries.html.tmpl", ctx)
+		if err != nil {
+			fivehundred(w, fmt.Errorf("Could not render queries as html %s", err.Error()))
+		}
+
+	}
+	http.HandleFunc("/queries.json", listhandler)
+	http.HandleFunc("/queries.html", listhandlerhtml)
 	http.HandleFunc("/index.html", func(w http.ResponseWriter, r *http.Request) {
 		data := map[string]interface{}{"": ""}
 		err := templates.ExecuteTemplate(w, "index.html.tmpl", data)
@@ -279,7 +309,7 @@ func main() {
 		key := parts[2]
 		qry, ok := ctx.Queries[key]
 		if !ok {
-			htmlerrorpage(w, fmt.Errorf("Could not find key=%s",key), http.StatusBadRequest)
+			htmlerrorpage(w, fmt.Errorf("Could not find key=%s", key), http.StatusBadRequest)
 			log.Debugf("Available Keys are: %v")
 			for k := range ctx.Queries {
 				log.Debugf("\t%s", k)
@@ -348,9 +378,36 @@ func main() {
 
 	}
 	http.HandleFunc("/bulk/", bulkhandler)
-	addr := ":8080"
+	http.HandleFunc("/login", loginhandler)
+	http.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
+		ForceLogin(w, r)
+		vars := make(map[string]interface{})
+		LoadTemplates()
+		names := make([]string, len(templates.Templates()))
+		for i, t := range templates.Templates() {
+			names[i] = t.Name()
+		}
+		vars["Templates"] = names
+		keys, err := LoadQueries(ctx, "features")
+		if err != nil {
+			fivehundred(w, err)
+		}
+		vars["Queries"] = keys
+		err = templates.ExecuteTemplate(w, "reload.html.tmpl", vars)
+		if err != nil {
+			fivehundred(w, err)
+		}
+	})
+	addr, ok := os.LookupEnv("FEATEX_ADDR")
+	if !ok {
+		addr = "0.0.0.0:8080"
+	}
 	log.Infof("Serving on address: %s", addr)
-	err = http.ListenAndServe(addr, nil)
+	if os.Getenv("FEATEX_TLS") != "" {
+		err = http.ListenAndServeTLS(addr, "server.crt", "server.key", nil)
+	} else {
+		err = http.ListenAndServe(addr, nil)
+	}
 	if err != nil {
 		log.Fatalf("Error in serving process is dying:\n\t%s\n%q", err.Error(), err)
 	}

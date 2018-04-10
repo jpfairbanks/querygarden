@@ -1,0 +1,20 @@
+<html>
+  {{ template "headelt" }}
+<div class="container">
+{{ template "title" }}
+<h2>Reload</h2>
+<p>This page allows you to reload content without restarting the application.</p>
+<h3>Successfully Reloaded Queries:</h3>
+<ul class="list-group">
+{{ range $idx, $key := .Queries }}
+  <li class="list-group-item d-flex justify-content-between align-items-center">{{ printf "%s" $key }}</li>
+{{ end }}
+</ul>
+<h3>Successfully Reloaded Templates:</h3>
+<ul class="list-group">
+{{ range $idx, $tpl := .Templates }}
+  <li class="list-group-item d-flex justify-content-between align-items-center">{{ printf "%s" $tpl }}</li>
+{{ end }}
+</ul>
+</div>
+</html>

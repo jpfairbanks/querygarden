@@ -9,11 +9,11 @@ import (
 )
 
 // Config sets up the viper configuration and reads it into the viper singleton.
-func Config() error {
-	viper.SetConfigName("featex_config")
-	viper.AddConfigPath("/etc/featex/")  // path to look for the config file in
-	viper.AddConfigPath("$HOME/.featex") // call multiple times to add many search paths
-	viper.AddConfigPath(".")             // optionally look for config in the working directory
+func Config(appname string) error {
+	viper.SetConfigName(appname + "_config")
+	viper.AddConfigPath("/etc/" + appname + "/") // path to look for the config file in
+	viper.AddConfigPath("$HOME/." + appname)     // call multiple times to add many search paths
+	viper.AddConfigPath(".")                     // optionally look for config in the working directory
 	defglobal := map[string]interface{}{
 		"schema":  "schema",
 		"version": "1.0",

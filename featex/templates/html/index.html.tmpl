@@ -1,20 +1,34 @@
+{{ define "headelt" }}
 <head>
-<link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/flatly/bootstrap.min.css" rel="stylesheet" integrity="sha384-+ENW/yibaokMnme+vBLnHMphUYxHs34h9lpdbSLuAwGkOKFRl4C34WkjazBtb7eT" crossorigin="anonymous">
+<link href="https://bootswatch.com/4/flatly/bootstrap.css" rel="stylesheet">
 <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/styles/default.min.css">
 <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.10.0/highlight.min.js"></script>
 <script>hljs.initHighlightingOnLoad();</script>
 </head>
+{{ end }}
+
+{{ define "appname" }}
+Featex
+{{ end }}
+{{ define "appmotto" }}
+Feature Exatraction as a service
+{{ end }}
+
+{{ define "title" }}
+<a href="/index.html"> <h1>FeatEx</h1></a>
+<p>Feature Extraction as a service!</p>
+{{ end }}
+{{ template "headelt" }}
 
 <div class="container">
-<h1>FeatEx</h1>
-<p>Feature Extraction as a service!</p>
-<p>You can serve up database queries to compute the features over an HTTP api.
+  {{ template "title" }}
+<p>You can serve up database queries to interrogate the dataset over an HTTP api.
 This api understands query parameters as URL encoded key value parameters.
 
 You can try a sample query at <a href="query/drugs?person=12">drugs</a>
-The queries can be found at <a href="queries">/queries</a>
-
-
+The queries can be found at <a href="queries.html">/queries</a>
 </p>
+
+<button type="button" class="btn btn-success"onclick="location.href='/login'">Log in</button>
 
 </div>
