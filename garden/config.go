@@ -10,6 +10,7 @@ import (
 
 // Config sets up the viper configuration and reads it into the viper singleton.
 func Config(appname string) error {
+	log.Debug("loading config for app")
 	viper.SetConfigName(appname + "_config")
 	viper.AddConfigPath("/etc/" + appname + "/") // path to look for the config file in
 	viper.AddConfigPath("$HOME/." + appname)     // call multiple times to add many search paths

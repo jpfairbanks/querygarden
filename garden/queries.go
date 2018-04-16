@@ -73,7 +73,8 @@ func (ctx *Context) LoadQueries(keys []string) error {
 func (ctx *Context) LoadQuery(key string) (Query, error) {
 	var q Query
 	// Read the query from a file into a string
-	pth := viper.GetString(fmt.Sprintf("features.%s.Filename", key))
+	fnamekey := fmt.Sprintf("features.%s.filename", key)
+	pth := viper.GetString(fnamekey)
 	if len(pth) == 0 {
 		return q, QError{key, "key has no associated filename"}
 	}
